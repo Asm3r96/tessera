@@ -64,17 +64,23 @@ struct MenuPanel: View {
                     .frame(width: 40, alignment: .trailing)
             }
             Toggle("Open at login", isOn: $model.launchAtLogin)
+            Text("Hover a mode to preview it. Drag a window onto a zone to swap or replace.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             HStack {
-                Text("Hover a mode to preview it. Drag a window onto a zone to swap or replace.")
+                Text("Tessera \(Self.version)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
                 Spacer()
                 Button("Quit") { NSApp.terminate(nil) }
             }
         }
         .padding(16)
     }
+
+    static let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
 
     private var accessBanner: some View {
         HStack(spacing: 10) {

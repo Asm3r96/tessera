@@ -13,7 +13,7 @@ body:
     id: version
     attributes:
       label: Tessera version
-      description: The release you installed, or the commit if you built from source.
+      description: Shown at the bottom left of the menu bar panel, next to Quit.
       placeholder: v0.1.0
     validations:
       required: true
