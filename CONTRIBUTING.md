@@ -27,7 +27,7 @@ Open a [feature request](https://github.com/Asm3r96/tessera/issues/new?template=
    ```
 
 3. Keep the change small and focused on one thing.
-4. Update `README.md` when behavior changes. If you change layout or resize math in `Sources/TesseraCore`, update `site/index.html` too.
+4. Update `README.md` when behavior changes. Do not add network requests beyond the update check. If you change layout or resize math in `Sources/TesseraCore`, update `site/index.html` too.
 5. Open the pull request and describe what you changed and how you tested it.
 
 Read [AGENTS.md](AGENTS.md) for the code rules. You need only the Apple Command Line Tools. Xcode is not required.

@@ -3,6 +3,7 @@ import TesseraCore
 
 struct MenuPanel: View {
     @ObservedObject var model: AppModel
+    @ObservedObject var updater: Updater
     private var editing: Mode? {
         get { model.editing }
         nonmutating set { model.editing = newValue }
@@ -40,6 +41,7 @@ struct MenuPanel: View {
                 .help("New mode")
             }
 
+            if let release = updater.available { updateBanner(release) }
             if !model.hasAccess { accessBanner }
 
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
@@ -64,6 +66,9 @@ struct MenuPanel: View {
                     .frame(width: 40, alignment: .trailing)
             }
             Toggle("Open at login", isOn: $model.launchAtLogin)
+            if updater.isRelease {
+                Toggle("Check for updates", isOn: $updater.enabled)
+            }
             Text("Hover a mode to preview it. Drag a window onto a zone to swap or replace.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -81,6 +86,33 @@ struct MenuPanel: View {
     }
 
     static let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+
+    private func updateBanner(_ release: Release) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Image(systemName: "arrow.down.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(Color.accentColor)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Tessera \(release.version.description) is available").font(.callout.weight(.medium))
+                    Link("What’s new", destination: release.page).font(.caption)
+                }
+                Spacer()
+                if updater.installing {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button("Update") { updater.install() }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                }
+            }
+            if let failure = updater.failure {
+                Text(failure).font(.caption).foregroundStyle(.red)
+            }
+        }
+        .padding(10)
+        .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
 
     private var accessBanner: some View {
         HStack(spacing: 10) {

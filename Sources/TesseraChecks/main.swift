@@ -77,5 +77,35 @@ let three = TileLinker.follow(old: b, new: bWider, frames: [0: a, 2: c], gap: ga
 check(three[0] == CGRect(x: 0, y: 0, width: 350, height: 800), "left column shrinks")
 check(three[2] == nil, "right column does not move")
 
+// Versions
+check(Version("0.2.0")! > Version("0.1.1")!, "0.2.0 is newer than 0.1.1")
+check(Version("v0.10.0")! > Version("0.9.9")!, "numbers compare as numbers, not text")
+check(Version("1.2") == Version("1.2.0"), "missing parts count as zero")
+check(Version("v1.0.0")?.description == "1.0.0", "a leading v is dropped")
+check(Version("0.1.0-3-g9ab980c") == nil, "a source build is not a release")
+check(Version("dev") == nil, "dev is not a release")
+check(Version("1..2") == nil, "an empty part is rejected")
+check(Version("1.2.3.4") == nil, "four parts are rejected")
+check(!(Version("0.2.0")! > Version("0.2.0")!), "the same version is not an update")
+
+// Release responses from GitHub
+func payload(tag: String, asset: String = "Tessera.zip", url: String = "https://github.com/Asm3r96/tessera/releases/download/v0.2.0/Tessera.zip") -> Data {
+    Data("""
+    {"tag_name": "\(tag)", "html_url": "https://github.com/Asm3r96/tessera/releases/tag/\(tag)",
+     "assets": [{"name": "\(asset)", "browser_download_url": "\(url)"}]}
+    """.utf8)
+}
+let parsed = Release.parse(payload(tag: "v0.2.0"))
+check(parsed?.version == Version("0.2.0"), "release version comes from the tag")
+check(parsed?.download.lastPathComponent == "Tessera.zip", "release download is the zip")
+check(Release.parse(payload(tag: "v0.2.0", asset: "Other.zip")) == nil, "a release without Tessera.zip is ignored")
+check(Release.parse(payload(tag: "nightly")) == nil, "a tag that is not a version is ignored")
+check(Release.parse(payload(tag: "v0.2.0", url: "http://example.com/Tessera.zip")) == nil, "a plain http download is refused")
+check(Release.parse(Data("not json".utf8)) == nil, "a broken response is ignored")
+if let path = ProcessInfo.processInfo.environment["TESSERA_RELEASE_JSON"],
+   let live = FileManager.default.contents(atPath: path) {
+    check(Release.parse(live) != nil, "the live GitHub response parses")
+}
+
 print(failures == 0 ? "All \(count) checks passed." : "\(failures) of \(count) checks failed.")
 exit(failures == 0 ? 0 : 1)
