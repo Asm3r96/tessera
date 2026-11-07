@@ -17,6 +17,10 @@ Tessera is a macOS menu bar app that tiles windows into saved modes. Read [READM
 - Install to `~/Applications`. `/Applications` can be write-protected on managed Macs.
 - Do not use SwiftUI or Observation macros (`@State`, `@Observable`, `@Bindable`). The Command Line Tools do not include the macro plugins, so these fail to compile. Use `ObservableObject`, `@Published` and `@ObservedObject`.
 - Use `swift build` to check compile errors before you install.
+- Run `swift run TesseraChecks` after changes to layout or resize math. XCTest and Swift Testing need Xcode, so the checks are a plain executable. Keep pure logic in `TesseraCore` so it stays testable.
+- The landing page in `site/` copies the layout and resize math from `TesseraCore` into JavaScript. When you change that math, update `site/index.html` too.
+- The build output goes to `.build/app`. Spotlight skips hidden folders, so only `~/Applications/Tessera.app` shows up in search.
+- Never commit the release `.p12` file or its password. They live only in GitHub secrets and the owner's private backup.
 - Keep all frames and points in top-left screen coordinates (Accessibility style). Convert AppKit values with `Screens.topLeft` and `Screens.mouse`.
 - Window titles are shown in the overlay only. Never save them.
 - The app is for personal use. Do not add App Store sandboxing; it blocks control of other apps' windows.

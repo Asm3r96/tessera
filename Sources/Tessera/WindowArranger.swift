@@ -1,4 +1,5 @@
 import AppKit
+import TesseraCore
 import ApplicationServices
 
 /// Maps an Accessibility window to its CGWindowID. Private, but stable and used by Rectangle and AeroSpace.
