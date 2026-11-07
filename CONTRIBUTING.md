@@ -7,7 +7,7 @@ Thank you for helping. Issues and pull requests are welcome.
 Open a [bug report](https://github.com/Asm3r96/tessera/issues/new?template=bug.yml). Include:
 
 1. Your macOS version and Mac model (Apple silicon or Intel).
-2. The Tessera version (menu bar icon › bottom of the panel, or the release you installed).
+2. The Tessera version. It shows at the bottom left of the menu bar panel, next to **Quit**.
 3. The steps that cause the bug, what you expected, and what happened.
 4. The apps involved. Some apps limit how small their windows can get.
 

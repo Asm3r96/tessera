@@ -41,6 +41,10 @@ cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 if [ -n "${VERSION:-}" ]; then
   plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP/Contents/Info.plist"
   plutil -replace CFBundleVersion -string "$VERSION" "$APP/Contents/Info.plist"
+else
+  # Source builds show the commit, for example 0.1.0-2-g21bead2, so bug reports name the exact code.
+  DESCRIBE="$(git describe --tags --always --dirty 2>/dev/null || true)"
+  [ -n "$DESCRIBE" ] && plutil -replace CFBundleShortVersionString -string "${DESCRIBE#v}" "$APP/Contents/Info.plist"
 fi
 codesign --force --options runtime --sign "$IDENTITY" --identifier com.moe.tessera "$APP"
 codesign --verify --strict "$APP"
