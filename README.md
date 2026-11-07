@@ -4,53 +4,48 @@ Tessera is a small menu bar app for macOS. It arranges your windows into saved l
 
 Tessera is free and open source under the [MIT License](LICENSE). You build it yourself from source. It is not on the Mac App Store, and you do not need an Apple Developer account.
 
-## Requirements
-
-- macOS 14 Sonoma or later, on Apple silicon or Intel.
-- Apple Command Line Tools. Xcode is not required.
-
-To check for the Command Line Tools, run `swift --version`. If the command is missing, run `xcode-select --install` and follow the dialog.
-
 ## Install
 
-1. Clone the repository:
+Run this in Terminal:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Asm3r96/tessera/main/install.sh | bash
+```
+
+1. The script downloads the latest release, puts Tessera in `~/Applications` and starts it.
+2. Allow Tessera in System Settings › Privacy & Security › Accessibility. macOS asks once.
+3. Press ⌃⌥1 to test.
+
+To update, run the same command again. The Accessibility permission stays.
+
+Tessera needs macOS 14 Sonoma or later. It runs on Apple silicon and Intel.
+
+To start Tessera again after you quit it, search for "Tessera" in Spotlight. To start it every time you log in, turn on **Open at login** in its menu. Tessera has no Dock icon. It lives only in the menu bar.
+
+## Build from source
+
+You need the Apple Command Line Tools. Xcode is not required. To check, run `swift --version`. If the command is missing, run `xcode-select --install`.
+
+1. Clone and install:
 
    ```sh
    git clone https://github.com/Asm3r96/tessera.git ~/dev/tessera
    cd ~/dev/tessera
-   ```
-
-2. Build, install and start the app:
-
-   ```sh
    ./build.sh install
    ```
 
-3. On the first build, macOS shows a keychain prompt for `codesign`. Type your Mac password and click **Always Allow**.
-4. Open System Settings › Privacy & Security › Accessibility and turn on **Tessera**.
-5. Press ⌃⌥1 to test.
+2. On the first build, macOS shows a keychain prompt for `codesign`. Type your Mac password and click **Always Allow**.
+3. Allow Tessera under Privacy & Security › Accessibility.
 
-The app installs to `~/Applications/Tessera.app`. A grid icon appears in the menu bar.
-
-## Update
-
-Pull the latest code and run the install again:
-
-```sh
-cd ~/dev/tessera
-git pull
-./build.sh install
-```
-
-The Accessibility permission stays after an update. You do not need to turn it on again.
-
-## Build commands
+To update a source build, run `git pull && ./build.sh install`.
 
 | Command | Result |
 | --- | --- |
-| `./build.sh` | Builds and signs `build/Tessera.app`. |
+| `./build.sh` | Builds and signs `.build/app/Tessera.app` for Apple silicon and Intel. |
 | `./build.sh install` | Builds, copies the app to `~/Applications`, and starts it. |
+| `VERSION=0.2.0 ./build.sh release` | Builds `.build/app/Tessera.zip` for a release. |
 | `swift build` | Compiles only. Use it to check for compile errors. |
+| `swift run TesseraChecks` | Runs the logic checks for layouts and linked resizing. |
 
 ## Signing
 
@@ -59,6 +54,16 @@ macOS links the Accessibility permission to the app's signature. A normal local 
 To prevent this, `build.sh` creates a self-signed certificate called **Tessera Local Signing** in your login keychain. It does this once on each Mac. Every later build uses the same certificate, so the permission stays.
 
 Each Mac gets its own certificate. You approve Accessibility once on each Mac.
+
+Releases use a separate certificate, **Tessera Release Signing**, stored as a GitHub secret. Every release has the same signature, so users who install with the command above keep the permission across updates. A source build and a release build have different signatures. If you switch between them, macOS asks for Accessibility again.
+
+## Releases
+
+1. Push a version tag, for example `git tag v0.2.0 && git push origin v0.2.0`.
+2. The Release workflow runs the checks, builds a universal `Tessera.zip`, signs it and publishes a GitHub Release.
+3. `install.sh` always downloads the latest release.
+
+The workflow needs two repository secrets: `TESSERA_SIGNING_P12` (the base64 `.p12` file) and `TESSERA_SIGNING_PASSWORD`. Keep a private backup of the `.p12` file. If you lose it, the next release has a new signature and every user must allow Accessibility again.
 
 ## Use
 
@@ -95,8 +100,8 @@ Modes are saved in the app's user defaults (`com.moe.tessera`). They do not sync
 | `./build.sh` hangs at the signing step | macOS is waiting at a hidden keychain prompt. Find it, type your password, and click **Always Allow**. |
 | Shortcuts do nothing | Turn on Tessera under Privacy & Security › Accessibility. Then quit Tessera from its menu and open it again. |
 | Tessera is on in Accessibility but windows do not move | The permission belongs to an old signature. Run `tccutil reset Accessibility com.moe.tessera`, start Tessera, and allow it again. |
-| `cp: /Applications/...: Permission denied` | The app installs to `~/Applications`, not `/Applications`. Pull the latest `build.sh`. |
 | `ld: warning: search path ... not found` | This warning is harmless with the Command Line Tools. Ignore it. |
+| Spotlight opens something else for "Tessera" | Use the result with the Tessera icon, or start it with `open ~/Applications/Tessera.app`. |
 | Zones do not appear when you drag a window | Apply a mode first. Drag the window by its title bar, not by its edge. |
 | A window does not get the full zone size | Some apps have a minimum window size. Tessera cannot make them smaller. |
 
@@ -104,9 +109,10 @@ Modes are saved in the app's user defaults (`com.moe.tessera`). They do not sync
 
 | Path | Contents |
 | --- | --- |
+| `Sources/TesseraCore/` | Layout math and linked resize math, without AppKit. |
+| `Sources/TesseraChecks/main.swift` | Logic checks for TesseraCore. |
 | `Sources/Tessera/TesseraApp.swift` | App entry point and menu bar item. |
 | `Sources/Tessera/AppModel.swift` | Saved modes, settings, Accessibility check, shortcuts. |
-| `Sources/Tessera/Mode.swift` | Mode model and zone layout math. |
 | `Sources/Tessera/WindowArranger.swift` | Finds windows and moves them through the Accessibility API. |
 | `Sources/Tessera/TileSession.swift` | Zones of the applied mode, swap and replace, linked resizing. |
 | `Sources/Tessera/DragWatcher.swift` | Detects window drags by the title bar and the drop point. |
@@ -114,6 +120,10 @@ Modes are saved in the app's user defaults (`com.moe.tessera`). They do not sync
 | `Sources/Tessera/HotKeys.swift` | Global shortcuts ⌃⌥1 to ⌃⌥9. |
 | `Sources/Tessera/MenuPanel.swift` | Menu bar panel and mode editor UI. |
 | `Resources/Info.plist` | Bundle settings. `LSUIElement` hides the Dock icon. |
+| `Resources/AppIcon.icns` | App icon. Rebuild it with `swift scripts/make-icon.swift`. |
+| `install.sh` | One-command installer for the latest release. |
+| `site/` | Landing page with an interactive demo. Plain HTML, no build step. |
+| `.github/workflows/` | Checks on every push, release on every `v*` tag. |
 | `build.sh` | Build, sign and install script. |
 
 ## Privacy
@@ -124,7 +134,7 @@ Tessera works only on your Mac and never connects to the network. It reads the p
 
 Issues and pull requests are welcome. Before you open a pull request:
 
-1. Run `swift build` and fix all errors.
+1. Run `swift build` and `swift run TesseraChecks`, and fix all failures.
 2. Run `./build.sh install` and test the change on a real screen.
 3. Update this README when behavior changes.
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import TesseraCore
 
 struct MenuPanel: View {
     @ObservedObject var model: AppModel

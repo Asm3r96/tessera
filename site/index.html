@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tessera · Window tiling for macOS</title>
+<meta name="description" content="Tessera is a free, open-source menu bar app that tiles your Mac windows into saved layouts. Try it in your browser.">
+<meta property="og:title" content="Tessera · Window tiling for macOS">
+<meta property="og:description" content="Press ⌃⌥1 and your windows snap into place. Free and open source.">
+<link rel="icon" href="icon.png">
+<style>
+:root { --ink:#1d1d1f; --muted:#6e6e73; --line:rgba(0,0,0,.08); --accent:#0a84ff; --bg:#fbfbfd; }
+* { box-sizing:border-box; }
+html, body { margin:0; }
+body { font:16px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased; }
+a { color:var(--accent); text-decoration:none; }
+a:hover { text-decoration:underline; }
+kbd { font:inherit; }
+
+.nav { max-width:1180px; margin:0 auto; padding:18px 24px; display:flex; align-items:center; gap:10px; }
+.nav img { width:30px; height:30px; }
+.nav .name { font-weight:600; font-size:17px; }
+.nav .sp { flex:1; }
+.nav a.gh { color:var(--ink); font-size:14px; display:flex; gap:6px; align-items:center; }
+.nav a.gh svg { width:18px; height:18px; }
+
+.hero { max-width:820px; margin:0 auto; padding:36px 24px 28px; text-align:center; }
+.hero h1 { font-size:clamp(36px,6vw,64px); line-height:1.04; letter-spacing:-.025em; margin:0 0 18px; font-weight:700; }
+.hero p { font-size:clamp(17px,2vw,20px); color:var(--muted); margin:0 auto 28px; max-width:620px; }
+.cmd { display:inline-flex; align-items:center; gap:10px; background:#1d1d1f; color:#f5f5f7; border-radius:12px; padding:8px 8px 8px 18px; font:14px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; max-width:100%; }
+.cmd code { overflow-x:auto; white-space:nowrap; scrollbar-width:none; }
+.cmd .p { color:#8e8e93; user-select:none; }
+.cmd button { flex:none; border:0; border-radius:8px; padding:7px 12px; background:rgba(255,255,255,.14); color:#fff; font:600 13px -apple-system, sans-serif; cursor:pointer; }
+.cmd button:hover { background:rgba(255,255,255,.24); }
+.meta { margin-top:14px; font-size:14px; color:var(--muted); }
+
+.stage { max-width:1180px; margin:20px auto 0; padding:0 24px; }
+.mac { position:relative; aspect-ratio:16/10; min-height:440px; border-radius:16px; overflow:hidden; user-select:none; -webkit-user-select:none; touch-action:none;
+  background:radial-gradient(1200px 600px at 15% 10%, #8ec5ff 0%, transparent 60%), radial-gradient(900px 600px at 90% 90%, #f6a6c9 0%, transparent 55%), linear-gradient(135deg, #5b7cfa, #9b6cf0 55%, #f08bb0);
+  box-shadow:0 40px 90px -20px rgba(30,30,80,.45), 0 0 0 1px rgba(0,0,0,.08); }
+.mac.dragging, .mac.dragging * { cursor:grabbing !important; }
+.stage .note { text-align:center; color:var(--muted); font-size:13px; margin:14px 0 0; }
+
+.menubar { position:absolute; inset:0 0 auto 0; height:28px; display:flex; align-items:center; padding:0 10px 0 14px; gap:18px; font-size:13px; color:#fff; background:rgba(30,30,60,.22); -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px); z-index:1000; text-shadow:0 1px 1px rgba(0,0,0,.15); }
+.menubar .app { font-weight:700; }
+.menubar .right { margin-left:auto; display:flex; gap:10px; align-items:center; }
+.tbtn { width:30px; height:22px; border-radius:6px; display:grid; place-items:center; border:0; background:transparent; color:#fff; cursor:pointer; padding:0; }
+.tbtn svg { width:17px; height:15px; }
+.tbtn:hover, .tbtn.open { background:rgba(255,255,255,.28); }
+.tbtn.pulse { animation:pulse 1.8s infinite; }
+@keyframes pulse { 0% { box-shadow:0 0 0 0 rgba(255,255,255,.8); } 70% { box-shadow:0 0 0 12px rgba(255,255,255,0); } 100% { box-shadow:0 0 0 0 rgba(255,255,255,0); } }
+
+.panel { position:absolute; top:33px; right:70px; width:318px; padding:14px; border-radius:14px; z-index:1001; color:var(--ink);
+  background:rgba(246,246,248,.86); -webkit-backdrop-filter:blur(30px) saturate(1.8); backdrop-filter:blur(30px) saturate(1.8);
+  box-shadow:0 20px 50px rgba(0,0,0,.28), 0 0 0 .5px rgba(0,0,0,.2); opacity:0; transform:translateY(-6px) scale(.98); transform-origin:top right; pointer-events:none; transition:opacity .15s, transform .15s; }
+.panel.show { opacity:1; transform:none; pointer-events:auto; }
+.panel h4 { margin:0 0 12px; font-size:14px; }
+.modes { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+.mode { border:0; text-align:left; padding:9px; border-radius:11px; background:rgba(0,0,0,.045); cursor:pointer; font:inherit; color:inherit; }
+.mode:hover { background:rgba(0,0,0,.09); }
+.mode.on { box-shadow:inset 0 0 0 2px var(--accent); }
+.mp { display:block; position:relative; height:50px; margin-bottom:7px; }
+.mp i { position:absolute; }
+.mp i::after { content:""; position:absolute; inset:1.5px; border-radius:3px; background:rgba(10,132,255,.2); border:1px solid rgba(10,132,255,.55); }
+.mp i.main::after { background:rgba(10,132,255,.45); }
+.ml { display:flex; align-items:center; justify-content:space-between; font-size:12.5px; }
+.ml b { font-weight:600; }
+.ml kbd { color:var(--muted); font-size:11.5px; font-family:ui-monospace, Menlo, monospace; }
+.prow { display:flex; align-items:center; gap:10px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line); font-size:13px; }
+.prow input { flex:1; accent-color:var(--accent); }
+.prow output { width:38px; text-align:right; color:var(--muted); font-variant-numeric:tabular-nums; }
+.panel .cap { margin:8px 0 0; font-size:11.5px; color:var(--muted); }
+
+.win { position:absolute; border-radius:11px; background:#fff; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 22px 50px -10px rgba(0,0,0,.35), 0 0 0 .5px rgba(0,0,0,.28); }
+.win.anim { transition:left .3s cubic-bezier(.2,.8,.2,1), top .3s cubic-bezier(.2,.8,.2,1), width .3s cubic-bezier(.2,.8,.2,1), height .3s cubic-bezier(.2,.8,.2,1); }
+.bar { position:relative; height:34px; flex:none; display:flex; align-items:center; padding:0 12px; background:#f6f6f8; border-bottom:1px solid var(--line); cursor:grab; }
+.bar .t { position:absolute; inset:0 64px; display:grid; place-items:center; overflow:hidden; white-space:nowrap; font-size:13px; font-weight:600; color:#3a3a3c; pointer-events:none; }
+.lights { position:relative; z-index:1; display:flex; gap:7px; }
+.lights button, .lights i { width:12px; height:12px; border-radius:50%; display:block; border:0; padding:0; background:#febc2e; }
+.lights i:last-child { background:#28c840; }
+.lights button { background:#ff5f57; cursor:pointer; }
+.lights button:hover { box-shadow:inset 0 0 0 4px #ff5f57, inset 0 0 0 12px #8d1a12; }
+.body { flex:1; min-height:0; overflow:hidden; position:relative; }
+.h { position:absolute; z-index:3; }
+.h.e { top:0; right:0; width:7px; height:100%; cursor:ew-resize; }
+.h.w { top:0; left:0; width:7px; height:100%; cursor:ew-resize; }
+.h.s { left:0; bottom:0; height:7px; width:100%; cursor:ns-resize; }
+.h.n { left:0; top:0; height:5px; width:100%; cursor:ns-resize; }
+
+.zones { position:absolute; inset:0; pointer-events:none; z-index:900; opacity:0; transition:opacity .12s; }
+.zones.show { opacity:1; }
+.zone { position:absolute; border-radius:14px; background:rgba(10,132,255,.12); border:1.5px solid rgba(10,132,255,.5); display:grid; place-items:center; transition:background .12s, border-color .12s; }
+.zone.hot { background:rgba(10,132,255,.3); border:3px solid rgba(10,132,255,.95); }
+.zc { display:flex; flex-direction:column; align-items:center; gap:6px; padding:12px 18px; max-width:86%; border-radius:16px; background:rgba(255,255,255,.72); -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); text-align:center; transition:transform .12s; }
+.zone.hot .zc { transform:scale(1.05); }
+.zc .ic { width:42px; height:42px; border-radius:10px; }
+.zc b { font-size:15px; }
+.zc b.muted { color:var(--muted); font-weight:500; }
+.zc small { font-size:12.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+.zone.hot .zc small { color:var(--accent); font-weight:600; }
+
+.ic { display:grid; place-items:center; color:#fff; box-shadow:inset 0 0 0 .5px rgba(255,255,255,.4), 0 1px 2px rgba(0,0,0,.2); }
+.ic svg { width:58%; height:58%; }
+
+.dock { position:absolute; bottom:8px; left:50%; transform:translateX(-50%); display:flex; gap:8px; padding:7px; border-radius:20px; z-index:1000;
+  background:rgba(255,255,255,.24); -webkit-backdrop-filter:blur(24px) saturate(1.6); backdrop-filter:blur(24px) saturate(1.6); border:1px solid rgba(255,255,255,.35); }
+.dock button { position:relative; width:50px; height:50px; border-radius:12px; border:0; padding:0; cursor:pointer; transition:transform .15s; }
+.dock button:hover { transform:translateY(-6px) scale(1.08); }
+.dock button::after { content:""; position:absolute; bottom:-5px; left:50%; width:4px; height:4px; margin-left:-2px; border-radius:50%; background:rgba(255,255,255,.9); opacity:0; }
+.dock button.on::after { opacity:1; }
+.dock button span { position:absolute; bottom:64px; left:50%; transform:translateX(-50%); padding:3px 9px; border-radius:6px; background:rgba(40,40,45,.85); color:#fff; font-size:12px; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .1s; }
+.dock button:hover span { opacity:1; }
+
+.hint { position:absolute; left:50%; top:42px; transform:translate(-50%,-4px); z-index:950; padding:8px 16px; border-radius:999px; background:rgba(20,20,30,.62); color:#fff; font-size:13.5px; font-weight:500; white-space:nowrap; -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); opacity:0; transition:opacity .3s, transform .3s; pointer-events:none; }
+.hint.show { opacity:1; transform:translate(-50%,0); }
+
+.b-browser .url { margin:10px auto 6px; width:62%; height:24px; border-radius:7px; background:#f0f0f3; font-size:12px; color:#8e8e93; display:grid; place-items:center; }
+.b-browser .page { padding:8px 22px; }
+.b-browser h3 { margin:6px 0 12px; font-size:22px; letter-spacing:-.01em; }
+.b-browser p { height:9px; border-radius:5px; background:#ececf0; margin:0 0 9px; }
+.b-browser p.s { width:60%; }
+.b-browser .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:18px; }
+.b-browser .cards i { display:block; aspect-ratio:4/3; border-radius:10px; background:linear-gradient(135deg,#dfeaff,#f4e6ff); }
+.b-browser .cards i:nth-child(2) { background:linear-gradient(135deg,#ffe9d6,#ffd9e6); }
+.b-browser .cards i:nth-child(3) { background:linear-gradient(135deg,#d9f7ea,#dff1ff); }
+.b-notes { display:flex; height:100%; }
+.b-notes aside { width:36%; max-width:170px; flex:none; background:#faf6e9; border-right:1px solid var(--line); padding:10px 8px; font-size:12.5px; display:flex; flex-direction:column; gap:2px; }
+.b-notes aside small { color:var(--muted); padding:2px 8px 6px; font-weight:600; }
+.b-notes aside span { padding:6px 8px; border-radius:6px; }
+.b-notes aside span.on { background:rgba(255,204,0,.35); }
+.b-notes main { padding:14px 18px; font-size:13.5px; color:#3a3a3c; }
+.b-notes main h3 { margin:0 0 8px; font-size:19px; color:var(--ink); }
+.b-notes main p { margin:0 0 8px; }
+.b-music { display:flex; gap:16px; padding:16px; height:100%; }
+.b-music .art { width:40%; max-width:190px; aspect-ratio:1; border-radius:10px; flex:none; background:radial-gradient(circle at 30% 30%, #ffd166, transparent 50%), linear-gradient(135deg,#ff2d55,#5856d6); box-shadow:0 8px 20px rgba(88,86,214,.3); }
+.b-music .tracks { flex:1; min-width:0; font-size:12.5px; }
+.b-music .tracks h3 { margin:0 0 6px; font-size:16px; }
+.b-music .tracks div { display:flex; justify-content:space-between; gap:8px; padding:7px 0; border-bottom:1px solid var(--line); white-space:nowrap; }
+.b-music .tracks span { color:var(--muted); }
+.b-term { margin:0; height:100%; padding:12px 14px; background:#1c1c1e; color:#e5e5ea; font:12px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace; white-space:pre-wrap; }
+.b-term .ok { color:#30d158; }
+.b-term .cur { display:inline-block; width:7px; height:14px; background:#e5e5ea; vertical-align:-2px; animation:blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity:0; } }
+.b-mail div { padding:9px 14px; border-bottom:1px solid var(--line); font-size:12.5px; }
+.b-mail div.on { background:#e8f2ff; }
+.b-mail b { display:block; }
+.b-mail span { color:var(--muted); }
+.b-photos { display:grid; grid-template-columns:repeat(auto-fill,minmax(72px,1fr)); gap:4px; padding:6px; }
+.b-photos i { aspect-ratio:1; border-radius:4px; background:linear-gradient(135deg,#ffb36b,#ff5e7e); }
+.b-photos i:nth-child(3n) { background:linear-gradient(135deg,#6be3ff,#5a7bff); }
+.b-photos i:nth-child(4n) { background:linear-gradient(135deg,#b7f08a,#2fbf71); }
+.b-photos i:nth-child(5n) { background:linear-gradient(135deg,#f6d365,#fda085); }
+.b-photos i:nth-child(7n) { background:linear-gradient(135deg,#c79bff,#6a5cff); }
+
+.section { max-width:1180px; margin:120px auto 0; padding:0 24px; }
+.eyebrow { font-size:13px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); margin:0 0 10px; }
+.section > h2 { font-size:clamp(30px,4vw,44px); line-height:1.08; letter-spacing:-.02em; margin:0 0 44px; max-width:640px; }
+.features { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:18px; }
+.card { background:#fff; border-radius:22px; padding:22px 22px 26px; box-shadow:0 1px 2px rgba(0,0,0,.04), 0 0 0 1px var(--line); transition:transform .25s, box-shadow .25s; }
+.card:hover { transform:translateY(-3px); box-shadow:0 18px 40px -18px rgba(30,40,90,.25), 0 0 0 1px var(--line); }
+.card h3 { margin:20px 0 6px; font-size:19px; letter-spacing:-.01em; }
+.card p { margin:0; color:var(--muted); font-size:15px; }
+.art { position:relative; height:132px; border-radius:14px; overflow:hidden; background:linear-gradient(135deg,#eef3ff,#f6efff); }
+.art .t { position:absolute; border-radius:7px; background:#fff; box-shadow:0 4px 12px -4px rgba(40,50,120,.25), 0 0 0 .5px rgba(0,0,0,.08); transition:all .6s cubic-bezier(.2,.8,.2,1); }
+.art .t::before { content:""; position:absolute; left:7px; top:6px; width:16px; height:4px; border-radius:2px; background:linear-gradient(90deg,#ff5f57 0 4px,transparent 4px 6px,#febc2e 6px 10px,transparent 10px 12px,#28c840 12px); }
+.art .t.c1 { background:linear-gradient(#fff 14px,#dfeaff 14px); }
+.art .t.c2 { background:linear-gradient(#fff 14px,#fff1cc 14px); }
+.art .t.c3 { background:linear-gradient(#fff 14px,#ffd9e2 14px); }
+.art .z { position:absolute; border-radius:8px; border:1.5px dashed rgba(10,132,255,.55); background:rgba(10,132,255,.08); }
+.keys { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:8px; }
+.key { min-width:44px; height:44px; padding:0 10px; border-radius:10px; display:grid; place-items:center; font:600 18px -apple-system, sans-serif; color:#3a3a3c; background:linear-gradient(#fff,#f2f2f5); box-shadow:0 2px 0 #d1d1d6, 0 3px 8px rgba(0,0,0,.08), inset 0 0 0 .5px rgba(0,0,0,.1); }
+.card:hover .key { animation:press .9s ease both; }
+.card:hover .key:nth-child(2) { animation-delay:.08s; }
+.card:hover .key:nth-child(3) { animation-delay:.16s; }
+@keyframes press { 40% { transform:translateY(2px); box-shadow:0 0 0 #d1d1d6, 0 1px 3px rgba(0,0,0,.08), inset 0 0 0 .5px rgba(0,0,0,.1); } }
+
+/* Swap art: tiles trade places on hover */
+.a-swap .c1 { left:10%; top:14%; width:38%; height:72%; }
+.a-swap .c3 { left:52%; top:14%; width:38%; height:72%; }
+.card:hover .a-swap .c1 { left:52%; }
+.card:hover .a-swap .c3 { left:10%; }
+/* Preview art: zones appear, then windows fill them */
+.a-prev .z { opacity:0; transition:opacity .3s; }
+.a-prev .z1 { left:8%; top:12%; width:54%; height:76%; }
+.a-prev .z2 { left:65%; top:12%; width:27%; height:36%; }
+.a-prev .z3 { left:65%; top:52%; width:27%; height:36%; }
+.card:hover .a-prev .z { opacity:1; }
+.a-prev .c1 { left:20%; top:24%; width:36%; height:50%; transform:rotate(-4deg); }
+.a-prev .c2 { left:52%; top:18%; width:30%; height:42%; transform:rotate(5deg); }
+.a-prev .c3 { left:40%; top:48%; width:30%; height:38%; transform:rotate(-2deg); }
+.card:hover .a-prev .c1 { left:8%; top:12%; width:54%; height:76%; transform:none; transition-delay:.3s; }
+.card:hover .a-prev .c2 { left:65%; top:12%; width:27%; height:36%; transform:none; transition-delay:.38s; }
+.card:hover .a-prev .c3 { left:65%; top:52%; width:27%; height:36%; transform:none; transition-delay:.46s; }
+/* Resize art: the shared edge moves, both tiles follow */
+.a-size .c1 { left:8%; top:14%; width:40%; height:72%; }
+.a-size .c2 { left:51%; top:14%; width:41%; height:72%; }
+.a-size .edge { position:absolute; left:49.5%; top:22%; width:3px; height:56%; margin-left:-1.5px; border-radius:2px; background:var(--accent); opacity:.0; transition:all .6s cubic-bezier(.2,.8,.2,1); }
+.card:hover .a-size .c1 { width:56%; }
+.card:hover .a-size .c2 { left:67%; width:25%; }
+.card:hover .a-size .edge { left:65.5%; opacity:1; }
+
+.install { max-width:1180px; margin:120px auto 0; padding:0 24px; }
+.install-card { position:relative; overflow:hidden; border-radius:28px; padding:56px clamp(24px,5vw,64px); color:#f5f5f7;
+  background:radial-gradient(700px 360px at 85% 0%, rgba(155,108,240,.55), transparent 60%), radial-gradient(600px 400px at 0% 100%, rgba(10,132,255,.45), transparent 60%), #111216; }
+.install-card .eyebrow { color:#8ec5ff; }
+.install-card h2 { font-size:clamp(30px,4vw,44px); line-height:1.08; letter-spacing:-.02em; margin:0 0 14px; }
+.install-card > p { color:#a1a1a6; margin:0 0 30px; max-width:560px; font-size:17px; }
+.install-card .cmd { background:rgba(255,255,255,.08); box-shadow:inset 0 0 0 1px rgba(255,255,255,.12); }
+.steps { list-style:none; margin:40px 0 0; padding:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:28px; counter-reset:s; }
+.steps li { counter-increment:s; font-size:15px; color:#c7c7cc; }
+.steps li::before { content:counter(s); display:grid; place-items:center; width:30px; height:30px; margin-bottom:12px; border-radius:50%; font-weight:700; font-size:14px; color:#fff; background:rgba(255,255,255,.12); box-shadow:inset 0 0 0 1px rgba(255,255,255,.18); }
+.steps b { display:block; color:#fff; font-size:16px; margin-bottom:4px; }
+.install-card .src { margin:40px 0 0; padding-top:24px; border-top:1px solid rgba(255,255,255,.1); font-size:14px; color:#8e8e93; }
+.install-card .src a { color:#8ec5ff; }
+footer { max-width:1180px; margin:0 auto; padding:40px 24px 56px; color:var(--muted); font-size:13px; display:flex; flex-wrap:wrap; align-items:center; gap:18px; }
+footer img { width:22px; height:22px; }
+footer .sp { flex:1; }
+footer a { color:var(--muted); }
+footer a:hover { color:var(--ink); text-decoration:none; }
+
+@media (max-width:720px) {
+  .mac { aspect-ratio:auto; height:560px; }
+  .panel { right:8px; width:min(318px, calc(100% - 16px)); }
+  .hint { white-space:normal; width:86%; text-align:center; border-radius:14px; top:auto; bottom:64px; font-size:12.5px; }
+  .dock { gap:5px; padding:5px; border-radius:16px; }
+  /* Phones: smaller window chrome, and app contents zoomed out to half size. */
+  .win { border-radius:8px; }
+  .bar { height:24px; padding:0 8px; }
+  .bar .t { inset:0 44px; font-size:11px; }
+  .lights { gap:4px; }
+  .lights button, .lights i { width:8px; height:8px; }
+  .body > * { zoom:.5; height:200%; }
+  .h.e, .h.w { width:10px; }
+  .h.s { height:10px; }
+  .dock button { width:40px; height:40px; border-radius:10px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .win.anim, .panel, .zones, .zone, .zc, .hint { transition:none; }
+  .tbtn.pulse, .b-term .cur, .card:hover .key { animation:none; }
+  .art .t, .a-size .edge, .card { transition:none; }
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <img src="icon.png" alt="">
+  <span class="name">Tessera</span>
+  <span class="sp"></span>
+  <a class="gh" href="https://github.com/Asm3r96/tessera"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>GitHub</a>
+</nav>
+
+<header class="hero">
+  <h1>Press one key.<br>Every window in its place.</h1>
+  <p>Tessera is a small menu bar app for macOS. Save your layouts, press ⌃⌥1, and your windows tile. Drag one window onto another to swap them. Try it below.</p>
+  <div class="cmd"><code><span class="p">$ </span>curl -fsSL https://raw.githubusercontent.com/Asm3r96/tessera/main/install.sh | bash</code><button class="copy" type="button">Copy</button></div>
+  <div class="meta">Free and open source · macOS 14 or later · Apple silicon and Intel</div>
+</header>
+
+<section class="stage" aria-label="Interactive demo">
+  <div class="mac" id="mac">
+    <div class="menubar">
+      <span class="app">Desktop</span><span>File</span><span>Edit</span><span>View</span>
+      <div class="right">
+        <button class="tbtn pulse" id="tbtn" type="button" aria-label="Tessera menu"><svg viewBox="0 0 22 20" fill="currentColor"><rect x="1" y="2" width="10" height="16" rx="2"/><rect x="13" y="2" width="8" height="7" rx="2"/><rect x="13" y="11" width="8" height="7" rx="2"/></svg></button>
+        <span id="clock"></span>
+      </div>
+    </div>
+    <div class="panel" id="panel" role="dialog" aria-label="Tessera">
+      <h4>Tessera</h4>
+      <div class="modes" id="modes"></div>
+      <div class="prow"><label for="gap">Gap</label><input id="gap" type="range" min="0" max="24" step="2" value="8"><output id="gapv">8 pt</output></div>
+      <p class="cap">Hover a mode to preview it. Drag a window onto a zone to swap or replace.</p>
+    </div>
+    <div class="zones" id="zones"></div>
+    <div class="hint" id="hint"></div>
+    <div class="dock" id="dock"></div>
+  </div>
+  <p class="note">This is a simulation in your browser. Shortcuts work here too: ⌃⌥1 to ⌃⌥5.</p>
+</section>
+
+<section class="section">
+  <p class="eyebrow">How it works</p>
+  <h2>Set up your screen once. Get it back with one key.</h2>
+  <div class="features">
+    <div class="card">
+      <div class="art"><div class="keys"><span class="key">⌃</span><span class="key">⌥</span><span class="key">1</span></div></div>
+      <h3>Pick a mode</h3>
+      <p>Click a layout in the menu bar or press ⌃⌥ and its number. The front window gets the biggest zone.</p>
+    </div>
+    <div class="card">
+      <div class="art a-prev"><i class="z z1"></i><i class="z z2"></i><i class="z z3"></i><i class="t c1"></i><i class="t c2"></i><i class="t c3"></i></div>
+      <h3>See it first</h3>
+      <p>Hover a mode and the screen shows which app lands in each zone before anything moves.</p>
+    </div>
+    <div class="card">
+      <div class="art a-swap"><i class="t c1"></i><i class="t c3"></i></div>
+      <h3>Swap and replace</h3>
+      <p>Drag a window onto another zone to swap places. Drag a new app onto a zone to take that spot.</p>
+    </div>
+    <div class="card">
+      <div class="art a-size"><i class="t c1"></i><i class="t c2"></i><i class="edge"></i></div>
+      <h3>Resize together</h3>
+      <p>Drag the line between two windows. Every window on that line follows, so nothing overlaps.</p>
+    </div>
+  </div>
+</section>
+
+<section class="install" id="install">
+  <div class="install-card">
+    <p class="eyebrow">Install</p>
+    <h2>One command. About ten seconds.</h2>
+    <p>Free and open source. No account, no subscription, no network access after install.</p>
+    <div class="cmd"><code><span class="p">$ </span>curl -fsSL https://raw.githubusercontent.com/Asm3r96/tessera/main/install.sh | bash</code><button class="copy" type="button">Copy</button></div>
+    <ol class="steps">
+      <li><b>Run the command</b>Tessera goes to ~/Applications and starts in your menu bar.</li>
+      <li><b>Allow Accessibility</b>System Settings › Privacy &amp; Security › Accessibility. macOS asks once.</li>
+      <li><b>Press ⌃⌥1</b>To update later, run the same command again.</li>
+    </ol>
+    <p class="src">Prefer to build it yourself? The <a href="https://github.com/Asm3r96/tessera#build-from-source">README</a> shows how, with only the Command Line Tools. Tessera saves no window contents.</p>
+  </div>
+</section>
+
+<footer>
+  <img src="icon.png" alt="">
+  <span>Tessera · MIT License</span><span class="sp"></span>
+  <a href="https://github.com/Asm3r96/tessera">Source</a>
+  <a href="https://github.com/Asm3r96/tessera/releases">Releases</a>
+  <a href="https://github.com/Asm3r96/tessera/issues">Report an issue</a>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+  var MENU = 28, DOCK = 78, MIN = 120, TOL = 6;
+  var mac = document.getElementById('mac');
+  var zonesEl = document.getElementById('zones');
+  var panel = document.getElementById('panel');
+  var tbtn = document.getElementById('tbtn');
+  var hint = document.getElementById('hint');
+  var dock = document.getElementById('dock');
+  var modesEl = document.getElementById('modes');
+  var gapInput = document.getElementById('gap');
+  var gapOut = document.getElementById('gapv');
+  var gap = 8;
+
+  function svg(p) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; }
+
+  var APPS = {
+    browser: { name: 'Browser', bg: 'linear-gradient(160deg,#6fd3ff,#0a84ff)', icon: svg('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>'),
+      body: '<div class="b-browser"><div class="url">example.com</div><div class="page"><h3>Reading list</h3><p></p><p></p><p class="s"></p><div class="cards"><i></i><i></i><i></i></div></div></div>' },
+    notes: { name: 'Notes', bg: 'linear-gradient(160deg,#ffe066,#ffb000)', icon: svg('<path d="M6 3h9l3 3v15H6z"/><path d="M9 10h6M9 14h6M9 18h3"/>'),
+      body: '<div class="b-notes"><aside><small>Today</small><span class="on">Ideas</span><span>Groceries</span><span>Trip to Vienna</span><span>Books</span></aside><main><h3>Ideas</h3><p>Keep the editor wide in the middle.</p><p>Music on the right, notes on the left.</p><p>One key to get back to this.</p></main></div>' },
+    music: { name: 'Music', bg: 'linear-gradient(160deg,#ff6b81,#ff2d55)', icon: svg('<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>'),
+      body: '<div class="b-music"><div class="art"></div><div class="tracks"><h3>Late Shift</h3><div><b>Night Drive</b><span>3:42</span></div><div><b>Paper Lanterns</b><span>4:05</span></div><div><b>Slow Tiles</b><span>2:58</span></div><div><b>Blue Hour</b><span>3:31</span></div></div></div>' },
+    terminal: { name: 'Terminal', bg: 'linear-gradient(160deg,#58585e,#1c1c1e)', icon: svg('<path d="m5 8 4 4-4 4M12 17h7"/>'),
+      body: '<pre class="b-term">$ curl -fsSL .../install.sh | bash\nDownloading Tessera...\n<span class="ok">Installed ~/Applications/Tessera.app</span>\n$ <span class="cur"></span></pre>' },
+    mail: { name: 'Mail', bg: 'linear-gradient(160deg,#64d2ff,#0071e3)', icon: svg('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>'),
+      body: '<div class="b-mail"><div class="on"><b>Lena</b><span>Photos from the weekend</span></div><div><b>Team</b><span>Standup moved to 10:30</span></div><div><b>Bank</b><span>Your monthly statement</span></div><div><b>Omar</b><span>Dinner on Friday?</span></div></div>' },
+    photos: { name: 'Photos', bg: 'conic-gradient(from 20deg,#ff9f0a,#ffd60a,#30d158,#64d2ff,#bf5af2,#ff375f,#ff9f0a)', icon: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 17-5-5-9 8"/>'),
+      body: '<div class="b-photos">' + new Array(25).join('<i></i>') + '</div>' }
+  };
+  var ORDER = ['browser', 'notes', 'music', 'terminal', 'mail', 'photos'];
+
+  // Same defaults and math as the macOS app (Sources/TesseraCore).
+  var MODES = [
+    { name: 'Halves', cols: [[1, 1], [1, 1]] },
+    { name: 'Focus', cols: [[1, 1], [2, 1], [1, 1]] },
+    { name: 'Main + Stack', cols: [[2, 1], [1, 2]] },
+    { name: 'Grid', cols: [[1, 2], [1, 2]] },
+    { name: 'Thirds', cols: [[1, 1], [1, 1], [1, 1]] }
+  ];
+
+  function zones(m) {
+    var total = 0, x = 0, out = [];
+    m.cols.forEach(function (c) { total += c[0]; });
+    m.cols.forEach(function (c) {
+      var w = c[0] / total, rows = Math.max(c[1], 1), h = 1 / rows;
+      for (var r = 0; r < rows; r++) out.push({ x: x, y: r * h, w: w, h: h });
+      x += w;
+    });
+    return out;
+  }
+  function fillOrder(m) {
+    return zones(m).map(function (r, i) { return { r: r, i: i }; })
+      .sort(function (a, b) { var d = b.r.w * b.r.h - a.r.w * a.r.h; return Math.abs(d) > 1e-4 ? d : a.i - b.i; })
+      .map(function (o) { return o.r; });
+  }
+  function area() { return { x: 0, y: MENU, w: mac.clientWidth, h: mac.clientHeight - MENU - DOCK }; }
+  function inset(f, d) { return { x: f.x + d, y: f.y + d, w: f.w - 2 * d, h: f.h - 2 * d }; }
+  function round(f) { return { x: Math.round(f.x), y: Math.round(f.y), w: Math.round(f.w), h: Math.round(f.h) }; }
+  function frames(m) {
+    var a = inset(area(), gap / 2);
+    return fillOrder(m).map(function (u) {
+      return round(inset({ x: a.x + u.x * a.w, y: a.y + u.y * a.h, w: u.w * a.w, h: u.h * a.h }, gap / 2));
+    });
+  }
+
+  var stack = [];      // windows, back to front
+  var session = null;  // { mode, slots: [{ f, win }] }
+  var cascade = 0;
+
+  function setFrame(w, f, anim) {
+    w.f = f;
+    var s = w.el.style;
+    if (anim) {
+      w.el.classList.add('anim');
+      clearTimeout(w.t);
+      w.t = setTimeout(function () { w.el.classList.remove('anim'); }, 330);
+    }
+    s.left = f.x + 'px'; s.top = f.y + 'px'; s.width = f.w + 'px'; s.height = f.h + 'px';
+  }
+  function front(w) {
+    stack.splice(stack.indexOf(w), 1);
+    stack.push(w);
+    stack.forEach(function (x, i) { x.el.style.zIndex = 10 + i; });
+  }
+  function slotOf(w) {
+    if (!session) return -1;
+    for (var i = 0; i < session.slots.length; i++) if (session.slots[i].win === w) return i;
+    return -1;
+  }
+  function pt(e) { var r = mac.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+
+  function open(id, rel) {
+    for (var k = 0; k < stack.length; k++) if (stack[k].app === id) { front(stack[k]); return stack[k]; }
+    var app = APPS[id];
+    var el = document.createElement('div');
+    el.className = 'win';
+    el.innerHTML = '<div class="bar"><div class="lights"><button type="button" aria-label="Close ' + app.name + '"></button><i></i><i></i></div><div class="t">' + app.name + '</div></div>'
+      + '<div class="body">' + app.body + '</div><span class="h n"></span><span class="h s"></span><span class="h e"></span><span class="h w"></span>';
+    mac.insertBefore(el, zonesEl);
+    var w = { app: id, el: el, f: null };
+    stack.push(w);
+    var a = area(), n = cascade++ % 5;
+    rel = rel || { x: 0.2 + n * 0.03, y: 0.08 + n * 0.04, w: 0.44, h: 0.62 };
+    setFrame(w, round({ x: a.x + rel.x * a.w, y: a.y + rel.y * a.h, w: rel.w * a.w, h: rel.h * a.h }));
+    front(w);
+    el.addEventListener('pointerdown', function () { front(w); }, true);
+    var closeBtn = el.querySelector('.lights button');
+    closeBtn.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+    closeBtn.addEventListener('click', function () { close(w); });
+    el.querySelector('.bar').addEventListener('pointerdown', function (e) { drag(w, e); });
+    Array.prototype.forEach.call(el.querySelectorAll('.h'), function (h) {
+      h.addEventListener('pointerdown', function (e) { resize(w, e, h.classList[1]); });
+    });
+    updateDock();
+    return w;
+  }
+  function close(w) {
+    var i = slotOf(w);
+    if (i >= 0) session.slots[i].win = null;
+    stack.splice(stack.indexOf(w), 1);
+    w.el.remove();
+    updateDock();
+  }
+
+  // Zones overlay
+  var lastKey = '';
+  function renderZones(items) {
+    var key = JSON.stringify(items.map(function (z) { return [z.f, z.win && z.win.app, z.hot, z.detail]; }));
+    if (key !== lastKey) {
+      lastKey = key;
+      zonesEl.innerHTML = items.map(function (z) {
+        var app = z.win ? APPS[z.win.app] : null;
+        return '<div class="zone' + (z.hot ? ' hot' : '') + '" style="left:' + z.f.x + 'px;top:' + z.f.y + 'px;width:' + z.f.w + 'px;height:' + z.f.h + 'px"><div class="zc">'
+          + (app ? '<span class="ic" style="background:' + app.bg + '">' + app.icon + '</span><b>' + app.name + '</b>' : '<b class="muted">Empty</b>')
+          + (z.detail ? '<small>' + z.detail + '</small>' : '') + '</div></div>';
+      }).join('');
+    }
+    zonesEl.classList.add('show');
+  }
+  function hideZones() { zonesEl.classList.remove('show'); lastKey = ''; }
+
+  // Modes
+  function plan(i) {
+    var keep = session ? session.slots.map(function (s) { return s.win; }).filter(Boolean) : [];
+    var rest = stack.slice().reverse().filter(function (w) { return keep.indexOf(w) < 0; });
+    var order = keep.concat(rest);
+    return frames(MODES[i]).map(function (f, k) { return { f: f, win: order[k] || null }; });
+  }
+  function preview(i) {
+    renderZones(plan(i).map(function (s) { return { f: s.f, win: s.win, detail: s.win ? '' : 'Stays empty' }; }));
+  }
+  function apply(i) {
+    session = { mode: i, slots: plan(i) };
+    session.slots.forEach(function (s) { if (s.win) setFrame(s.win, s.f, true); });
+    hideZones();
+    markActive();
+    advance('apply');
+  }
+  function relayout(anim) {
+    if (!session) return;
+    var wins = session.slots.map(function (s) { return s.win; });
+    session.slots = frames(MODES[session.mode]).map(function (f, k) { return { f: f, win: wins[k] }; });
+    session.slots.forEach(function (s) { if (s.win) setFrame(s.win, s.f, anim); });
+  }
+  function markActive() {
+    Array.prototype.forEach.call(modesEl.children, function (b, i) { b.classList.toggle('on', !!session && session.mode === i); });
+  }
+
+  // Drag to swap, replace or free
+  function zoneAt(p) {
+    var a = area();
+    if (p.y < a.y || p.y > a.y + a.h) return -1;
+    var best = -1, bd = Infinity;
+    session.slots.forEach(function (s, i) {
+      var f = s.f, dx = Math.max(f.x - p.x, 0, p.x - f.x - f.w), dy = Math.max(f.y - p.y, 0, p.y - f.y - f.h), d = Math.hypot(dx, dy);
+      if (d < bd) { bd = d; best = i; }
+    });
+    return best;
+  }
+  function action(w, i) {
+    var occ = session.slots[i].win;
+    if (!occ) return 'Move here';
+    if (occ === w) return 'Keep here';
+    return (slotOf(w) < 0 ? 'Replace ' : 'Swap with ') + APPS[occ.app].name;
+  }
+  function drag(w, e) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    var bar = e.currentTarget;
+    bar.setPointerCapture(e.pointerId);
+    var p0 = pt(e), f0 = w.f, moved = false, hot = -1;
+    function move(ev) {
+      var p = pt(ev);
+      if (!moved && Math.hypot(p.x - p0.x, p.y - p0.y) < 4) return;
+      moved = true;
+      mac.classList.add('dragging');
+      setFrame(w, { x: f0.x + p.x - p0.x, y: Math.max(MENU, f0.y + p.y - p0.y), w: f0.w, h: f0.h });
+      if (session && !ev.altKey) {
+        hot = zoneAt(p);
+        renderZones(session.slots.map(function (s, i) {
+          return { f: s.f, win: s.win, hot: i === hot, detail: i === hot ? action(w, i) : (s.win ? '' : 'Drop a window here') };
+        }));
+      } else {
+        hot = -1;
+        hideZones();
+      }
+    }
+    function up(ev) {
+      bar.removeEventListener('pointermove', move);
+      bar.removeEventListener('pointerup', up);
+      bar.removeEventListener('pointercancel', up);
+      mac.classList.remove('dragging');
+      hideZones();
+      if (!moved || !session) return;
+      if (hot >= 0 && !ev.altKey) place(w, hot);
+      else { var i = slotOf(w); if (i >= 0) session.slots[i].win = null; }
+    }
+    bar.addEventListener('pointermove', move);
+    bar.addEventListener('pointerup', up);
+    bar.addEventListener('pointercancel', up);
+  }
+  function place(w, i) {
+    var s = session.slots, from = slotOf(w), occ = s[i].win, kind = 'move';
+    if (from >= 0 && from !== i) {
+      s[from].win = occ;
+      if (occ) { setFrame(occ, s[from].f, true); kind = 'swap'; }
+    } else if (from < 0 && occ) {
+      kind = 'replace';
+    }
+    s[i].win = w;
+    setFrame(w, s[i].f, true);
+    front(w);
+    advance(kind);
+  }
+
+  // Linked resize: every tile edge on the moved line follows it.
+  function near(a, b) { return Math.abs(a - b) < TOL; }
+  function follow(old, nw, others) {
+    var out = {};
+    Object.keys(others).forEach(function (k) {
+      var f = others[k], minX = f.x, maxX = f.x + f.w, minY = f.y, maxY = f.y + f.h;
+      var oMaxX = old.x + old.w, nMaxX = nw.x + nw.w, oMaxY = old.y + old.h, nMaxY = nw.y + nw.h;
+      if (Math.abs(nMaxX - oMaxX) > 1) { if (near(minX, oMaxX + gap)) minX = nMaxX + gap; if (near(maxX, oMaxX)) maxX = nMaxX; }
+      if (Math.abs(nw.x - old.x) > 1) { if (near(maxX, old.x - gap)) maxX = nw.x - gap; if (near(minX, old.x)) minX = nw.x; }
+      if (Math.abs(nMaxY - oMaxY) > 1) { if (near(minY, oMaxY + gap)) minY = nMaxY + gap; if (near(maxY, oMaxY)) maxY = nMaxY; }
+      if (Math.abs(nw.y - old.y) > 1) { if (near(maxY, old.y - gap)) maxY = nw.y - gap; if (near(minY, old.y)) minY = nw.y; }
+      var u = { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+      if ((u.x !== f.x || u.y !== f.y || u.w !== f.w || u.h !== f.h) && u.w >= MIN && u.h >= MIN) out[k] = u;
+    });
+    return out;
+  }
+  function resize(w, e, dir) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    front(w);
+    var h = e.currentTarget;
+    h.setPointerCapture(e.pointerId);
+    var p0 = pt(e), f0 = w.f, linked = false;
+    function move(ev) {
+      var p = pt(ev), dx = p.x - p0.x, dy = p.y - p0.y, f = { x: f0.x, y: f0.y, w: f0.w, h: f0.h };
+      if (dir === 'e') f.w = Math.max(MIN, f0.w + dx);
+      if (dir === 's') f.h = Math.max(MIN, f0.h + dy);
+      if (dir === 'w') { var nw = Math.max(MIN, f0.w - dx); f.x = f0.x + f0.w - nw; f.w = nw; }
+      if (dir === 'n') { var ny = Math.max(MENU, Math.min(f0.y + dy, f0.y + f0.h - MIN)); f.h = f0.y + f0.h - ny; f.y = ny; }
+      f = round(f);
+      var i = slotOf(w);
+      if (i >= 0) {
+        var old = session.slots[i].f, others = {};
+        session.slots.forEach(function (s, k) { if (k !== i) others[k] = s.f; });
+        var moved = follow(old, f, others);
+        Object.keys(moved).forEach(function (k) {
+          session.slots[k].f = moved[k];
+          if (session.slots[k].win) setFrame(session.slots[k].win, moved[k]);
+          linked = true;
+        });
+        session.slots[i].f = f;
+      }
+      setFrame(w, f);
+    }
+    function up() {
+      h.removeEventListener('pointermove', move);
+      h.removeEventListener('pointerup', up);
+      h.removeEventListener('pointercancel', up);
+      if (linked) advance('resize');
+    }
+    h.addEventListener('pointermove', move);
+    h.addEventListener('pointerup', up);
+    h.addEventListener('pointercancel', up);
+  }
+
+  // Guided hints
+  var STEPS = ['start', 'panel', 'apply', 'swap', 'replace', 'resize'];
+  var TEXT = {
+    start: 'Click the Tessera icon in the menu bar ↗',
+    panel: 'Hover a mode to preview it. Click it to tile.',
+    apply: 'Drag a window by its title bar onto another zone to swap.',
+    swap: 'Open an app from the Dock, then drag it onto a zone.',
+    replace: 'Drag the edge between two windows. Both resize.',
+    resize: 'That is Tessera. Install it with the command above.'
+  };
+  var step = -1;
+  function advance(kind) {
+    var k = STEPS.indexOf(kind);
+    if (k <= step) return;
+    step = k;
+    hint.textContent = TEXT[kind];
+    hint.classList.add('show');
+    tbtn.classList.toggle('pulse', step === 0);
+    if (kind === 'resize') setTimeout(function () { hint.classList.remove('show'); }, 5000);
+  }
+
+  // Panel
+  function mini(m) {
+    var main = fillOrder(m)[0];
+    return zones(m).map(function (r) {
+      var isMain = r.x === main.x && r.y === main.y;
+      return '<i' + (isMain ? ' class="main"' : '') + ' style="left:' + r.x * 100 + '%;top:' + r.y * 100 + '%;width:' + r.w * 100 + '%;height:' + r.h * 100 + '%"></i>';
+    }).join('');
+  }
+  modesEl.innerHTML = MODES.map(function (m, i) {
+    return '<button type="button" class="mode"><span class="mp">' + mini(m) + '</span><span class="ml"><b>' + m.name + '</b><kbd>⌃⌥' + (i + 1) + '</kbd></span></button>';
+  }).join('');
+  Array.prototype.forEach.call(modesEl.children, function (b, i) {
+    b.addEventListener('mouseenter', function () { preview(i); });
+    b.addEventListener('focus', function () { preview(i); });
+    b.addEventListener('click', function () { apply(i); setPanel(false); });
+  });
+  modesEl.addEventListener('mouseleave', hideZones);
+
+  function setPanel(show) {
+    panel.classList.toggle('show', show);
+    tbtn.classList.toggle('open', show);
+    if (show) advance('panel'); else hideZones();
+  }
+  tbtn.addEventListener('click', function () { setPanel(!panel.classList.contains('show')); });
+  document.addEventListener('pointerdown', function (e) {
+    if (panel.classList.contains('show') && !panel.contains(e.target) && !tbtn.contains(e.target)) setPanel(false);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') setPanel(false);
+    var m = e.ctrlKey && e.altKey && /^Digit([1-9])$/.exec(e.code);
+    if (m && MODES[m[1] - 1]) { e.preventDefault(); apply(m[1] - 1); }
+  });
+  gapInput.addEventListener('input', function () {
+    gap = +gapInput.value;
+    gapOut.textContent = gap + ' pt';
+    relayout(false);
+  });
+
+  // Dock
+  dock.innerHTML = ORDER.map(function (id) {
+    var app = APPS[id];
+    return '<button type="button" class="ic" data-app="' + id + '" style="background:' + app.bg + '" aria-label="Open ' + app.name + '">' + app.icon + '<span>' + app.name + '</span></button>';
+  }).join('');
+  dock.addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (b) open(b.getAttribute('data-app'));
+  });
+  function updateDock() {
+    Array.prototype.forEach.call(dock.children, function (b) {
+      var id = b.getAttribute('data-app');
+      b.classList.toggle('on', stack.some(function (w) { return w.app === id; }));
+    });
+  }
+
+  // Clock
+  var clock = document.getElementById('clock');
+  function tick() { clock.textContent = new Date().toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' }); }
+  tick();
+  setInterval(tick, 15000);
+
+  // Free windows scale with the desktop, so the demo looks the same at any size.
+  var lastArea = area();
+  window.addEventListener('resize', function () {
+    var a = area(), sx = a.w / lastArea.w, sy = a.h / lastArea.h;
+    if (session) relayout(false);
+    stack.forEach(function (w) {
+      if (slotOf(w) >= 0) return;
+      var f = w.f;
+      setFrame(w, round({ x: f.x * sx, y: a.y + (f.y - lastArea.y) * sy, w: f.w * sx, h: f.h * sy }));
+    });
+    lastArea = a;
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.copy'), function (btn) { btn.addEventListener('click', function () {
+    var b = this;
+    var text = 'curl -fsSL https://raw.githubusercontent.com/Asm3r96/tessera/main/install.sh | bash';
+    (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(function () {
+      b.textContent = 'Copied';
+      setTimeout(function () { b.textContent = 'Copy'; }, 1500);
+    }, function () { b.textContent = 'Select and copy'; });
+  }); });
+
+  // A messy desktop to start from.
+  open('browser', { x: 0.05, y: 0.07, w: 0.5, h: 0.68 });
+  open('notes', { x: 0.34, y: 0.22, w: 0.36, h: 0.56 });
+  open('music', { x: 0.57, y: 0.05, w: 0.37, h: 0.5 });
+  advance('start');
+})();
+</script>
+</body>
+</html>

@@ -4,5 +4,9 @@ import PackageDescription
 let package = Package(
     name: "Tessera",
     platforms: [.macOS(.v14)],
-    targets: [.executableTarget(name: "Tessera", path: "Sources/Tessera")]
+    targets: [
+        .target(name: "TesseraCore"),
+        .executableTarget(name: "Tessera", dependencies: ["TesseraCore"]),
+        .executableTarget(name: "TesseraChecks", dependencies: ["TesseraCore"]),
+    ]
 )

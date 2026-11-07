@@ -1,19 +1,21 @@
 #!/bin/bash
-# Builds Tessera.app and signs it with a persistent local certificate.
-# Usage: ./build.sh          build into build/Tessera.app
+# Builds Tessera.app (universal: Apple silicon and Intel) and signs it.
+# Usage: ./build.sh          build into .build/app/Tessera.app
 #        ./build.sh install  build, copy to ~/Applications and launch
+#        ./build.sh release  build and zip into .build/app/Tessera.zip (set VERSION, for example 0.2.0)
 set -euo pipefail
 cd "$(dirname "$0")"
 
-IDENTITY="Tessera Local Signing"
-APP="build/Tessera.app"
+IDENTITY="${TESSERA_IDENTITY:-Tessera Local Signing}"
+OUT=".build/app"
+APP="$OUT/Tessera.app"
 KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
 
 # macOS keys the Accessibility permission to the app's signature. An ad-hoc
 # signature changes on every build, so macOS would ask again after each rebuild.
 # A self-signed certificate, made once per Mac, keeps the signature stable.
 provision_identity() {
-  security find-identity -p codesigning "$KEYCHAIN" | grep -qF "\"$IDENTITY\"" && return 0
+  security find-identity -p codesigning | grep -qF "\"$IDENTITY\"" && return 0
   echo "Creating signing certificate \"$IDENTITY\"..."
   local tmp; tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' RETURN
@@ -28,21 +30,34 @@ provision_identity() {
 }
 
 provision_identity
-swift build -c release
+swift build -c release --arch arm64 --arch x86_64 --product Tessera
+BIN="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
 
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS"
-cp .build/release/Tessera "$APP/Contents/MacOS/Tessera"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+cp "$BIN/Tessera" "$APP/Contents/MacOS/Tessera"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+if [ -n "${VERSION:-}" ]; then
+  plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP/Contents/Info.plist"
+  plutil -replace CFBundleVersion -string "$VERSION" "$APP/Contents/Info.plist"
+fi
 codesign --force --options runtime --sign "$IDENTITY" --identifier com.moe.tessera "$APP"
 codesign --verify --strict "$APP"
 echo "Built $APP"
 
-if [ "${1:-}" = "install" ]; then
-  pkill -x Tessera || true
-  mkdir -p "$HOME/Applications"
-  rm -rf "$HOME/Applications/Tessera.app"
-  cp -R "$APP" "$HOME/Applications/Tessera.app"
-  open "$HOME/Applications/Tessera.app"
-  echo "Installed $HOME/Applications/Tessera.app"
-fi
+case "${1:-}" in
+  install)
+    pkill -x Tessera || true
+    mkdir -p "$HOME/Applications"
+    rm -rf "$HOME/Applications/Tessera.app"
+    ditto "$APP" "$HOME/Applications/Tessera.app"
+    open "$HOME/Applications/Tessera.app"
+    echo "Installed $HOME/Applications/Tessera.app"
+    ;;
+  release)
+    rm -f "$OUT/Tessera.zip"
+    ditto -c -k --keepParent "$APP" "$OUT/Tessera.zip"
+    echo "Packed $OUT/Tessera.zip"
+    ;;
+esac

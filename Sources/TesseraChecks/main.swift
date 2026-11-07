@@ -1,0 +1,81 @@
+// Logic checks for TesseraCore. Run: swift run TesseraChecks
+// XCTest and Swift Testing need Xcode, so these checks run as a plain executable.
+import CoreGraphics
+import Foundation
+import TesseraCore
+
+var failures = 0
+var count = 0
+
+func check(_ condition: Bool, _ name: String, file: String = #file, line: Int = #line) {
+    count += 1
+    if !condition {
+        failures += 1
+        print("FAIL \(name) (line \(line))")
+    }
+}
+
+func near(_ a: CGRect, _ b: CGRect) -> Bool {
+    abs(a.minX - b.minX) < 0.0001 && abs(a.minY - b.minY) < 0.0001
+        && abs(a.width - b.width) < 0.0001 && abs(a.height - b.height) < 0.0001
+}
+
+// Zones
+let halves = Mode(name: "Halves", columns: [Column(weight: 1, rows: 1), Column(weight: 1, rows: 1)])
+check(halves.zones.count == 2, "halves has two zones")
+check(near(halves.zones[0], CGRect(x: 0, y: 0, width: 0.5, height: 1)), "left half")
+check(near(halves.zones[1], CGRect(x: 0.5, y: 0, width: 0.5, height: 1)), "right half")
+
+let stack = Mode(name: "Main + Stack", columns: [Column(weight: 2, rows: 1), Column(weight: 1, rows: 2)])
+check(stack.zones.count == 3, "main + stack has three zones")
+check(near(stack.zones[2], CGRect(x: 2.0 / 3, y: 0.5, width: 1.0 / 3, height: 0.5)), "bottom of stack")
+let covered = stack.zones.map { $0.width * $0.height }.reduce(0, +)
+check(abs(covered - 1) < 0.0001, "zones cover the whole area")
+
+// Fill order: the largest zone first, then left to right, top to bottom.
+let focus = Mode(name: "Focus", columns: [Column(weight: 1, rows: 1), Column(weight: 2, rows: 1), Column(weight: 1, rows: 1)])
+check(near(focus.fillOrder[0], focus.zones[1]), "the wide middle zone fills first")
+check(near(focus.fillOrder[1], focus.zones[0]), "then the left zone")
+check(near(focus.fillOrder[2], focus.zones[2]), "then the right zone")
+
+let empty = Mode(name: "Zero", columns: [Column(weight: 0, rows: 0)])
+check(empty.zones.count == 1, "zero rows count as one row")
+
+// Saved modes survive encoding.
+let data = try JSONEncoder().encode(Mode.defaults)
+let decoded = try JSONDecoder().decode([Mode].self, from: data)
+check(decoded == Mode.defaults, "modes round-trip through JSON")
+
+// Linked resize: two columns with an 8 pt gap.
+let gap = 8.0
+let left = CGRect(x: 0, y: 0, width: 496, height: 800)
+let right = CGRect(x: 504, y: 0, width: 496, height: 800)
+let wider = CGRect(x: 0, y: 0, width: 596, height: 800)
+let followed = TileLinker.follow(old: left, new: wider, frames: [1: right], gap: gap)
+check(followed[1] == CGRect(x: 604, y: 0, width: 396, height: 800), "right column follows the moved edge")
+
+let moved = TileLinker.follow(old: left, new: left.offsetBy(dx: 0, dy: 0), frames: [1: right], gap: gap)
+check(moved.isEmpty, "no change, no follow")
+
+let tooFar = CGRect(x: 0, y: 0, width: 950, height: 800)
+check(TileLinker.follow(old: left, new: tooFar, frames: [1: right], gap: gap).isEmpty, "a neighbor never shrinks below the minimum")
+
+// Stacked rows: dragging the split between top and bottom.
+let top = CGRect(x: 504, y: 0, width: 496, height: 396)
+let bottom = CGRect(x: 504, y: 404, width: 496, height: 396)
+let taller = CGRect(x: 504, y: 0, width: 496, height: 496)
+let rows = TileLinker.follow(old: top, new: taller, frames: [0: left, 2: bottom], gap: gap)
+check(rows[2] == CGRect(x: 504, y: 504, width: 496, height: 296), "bottom row follows")
+check(rows[0] == nil, "the left column is not on that edge")
+
+// Three columns: the middle edge moves both neighbors that touch it.
+let a = CGRect(x: 0, y: 0, width: 400, height: 800)
+let b = CGRect(x: 408, y: 0, width: 292, height: 800)
+let c = CGRect(x: 708, y: 0, width: 292, height: 800)
+let bWider = CGRect(x: 358, y: 0, width: 342, height: 800)
+let three = TileLinker.follow(old: b, new: bWider, frames: [0: a, 2: c], gap: gap)
+check(three[0] == CGRect(x: 0, y: 0, width: 350, height: 800), "left column shrinks")
+check(three[2] == nil, "right column does not move")
+
+print(failures == 0 ? "All \(count) checks passed." : "\(failures) of \(count) checks failed.")
+exit(failures == 0 ? 0 : 1)
