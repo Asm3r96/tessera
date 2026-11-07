@@ -64,8 +64,18 @@ Each Mac gets its own certificate. You approve Accessibility once on each Mac.
 
 - Click the menu bar icon, then click a mode. Tessera arranges the windows on the screen under the mouse.
 - Press ⌃⌥1 to ⌃⌥9 to apply the mode at that position in the list.
-- The frontmost window goes into the largest zone. The next windows fill the other zones. Extra windows stay where they are.
+- Hover a mode card to preview it. The screen shows each zone with the app and window that will go there.
+- The frontmost window goes into the largest zone. The next windows fill the other zones. Extra windows stay where they are. When you switch modes on the same screen, the tiled windows stay in their order.
 - Drag the edge between two arranged windows. Every window on that edge resizes with it.
+
+### Swap, replace and free windows
+
+When a mode is applied, drag any window by its title bar. The zones appear on screen, and the zone under the pointer shows what the drop will do.
+
+- **Swap:** drag a tiled window onto another zone. The two windows change places and keep the zone sizes.
+- **Replace:** drag a new window, for example Spotify, onto a zone. It takes that zone. The old window stays where it is, behind.
+- **Move here:** drag a window onto an empty zone to fill it.
+- **Free:** hold Option while you drop, or drop off the tiled screen. The window leaves the layout.
 - Use the **Gap** slider to set the space between windows.
 - Turn on **Open at login** to start Tessera when you log in.
 
@@ -87,6 +97,7 @@ Modes are saved in the app's user defaults (`com.moe.tessera`). They do not sync
 | Tessera is on in Accessibility but windows do not move | The permission belongs to an old signature. Run `tccutil reset Accessibility com.moe.tessera`, start Tessera, and allow it again. |
 | `cp: /Applications/...: Permission denied` | The app installs to `~/Applications`, not `/Applications`. Pull the latest `build.sh`. |
 | `ld: warning: search path ... not found` | This warning is harmless with the Command Line Tools. Ignore it. |
+| Zones do not appear when you drag a window | Apply a mode first. Drag the window by its title bar, not by its edge. |
 | A window does not get the full zone size | Some apps have a minimum window size. Tessera cannot make them smaller. |
 
 ## Project layout
@@ -97,7 +108,9 @@ Modes are saved in the app's user defaults (`com.moe.tessera`). They do not sync
 | `Sources/Tessera/AppModel.swift` | Saved modes, settings, Accessibility check, shortcuts. |
 | `Sources/Tessera/Mode.swift` | Mode model and zone layout math. |
 | `Sources/Tessera/WindowArranger.swift` | Finds windows and moves them through the Accessibility API. |
-| `Sources/Tessera/TileSession.swift` | Linked resizing of arranged windows. |
+| `Sources/Tessera/TileSession.swift` | Zones of the applied mode, swap and replace, linked resizing. |
+| `Sources/Tessera/DragWatcher.swift` | Detects window drags by the title bar and the drop point. |
+| `Sources/Tessera/ZoneOverlay.swift` | Click-through zone overlay for previews and drags. |
 | `Sources/Tessera/HotKeys.swift` | Global shortcuts ⌃⌥1 to ⌃⌥9. |
 | `Sources/Tessera/MenuPanel.swift` | Menu bar panel and mode editor UI. |
 | `Resources/Info.plist` | Bundle settings. `LSUIElement` hides the Dock icon. |
