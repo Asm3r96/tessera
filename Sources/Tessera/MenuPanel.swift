@@ -22,6 +22,7 @@ struct MenuPanel: View {
         }
         .frame(width: 340)
         .onAppear { model.refresh() }
+        .onDisappear { model.hovered = nil }
     }
 
     private var overview: some View {
@@ -63,9 +64,10 @@ struct MenuPanel: View {
             }
             Toggle("Open at login", isOn: $model.launchAtLogin)
             HStack {
-                Text("Point at a screen, then press ⌃⌥ and a number.")
+                Text("Hover a mode to preview it. Drag a window onto a zone to swap or replace.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 Spacer()
                 Button("Quit") { NSApp.terminate(nil) }
             }

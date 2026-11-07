@@ -36,29 +36,29 @@ enum TileLinker {
     private static func near(_ a: Double, _ b: Double) -> Bool { abs(a - b) < tolerance }
 }
 
-/// Watches the windows of the last applied mode. When you resize one, its neighbors follow.
+/// The applied mode on one screen: zone frames and the window in each zone.
+/// Resizing a window moves its zone edges, and the neighbor zones follow.
 final class TileSession {
-    private struct Tile {
-        let window: AXUIElement
-        let pid: pid_t
+    struct Slot {
         var frame: CGRect
+        var window: AXUIElement?
         var quietUntil: Date
     }
 
-    private var tiles: [Tile] = []
+    let screenID: CGDirectDisplayID
+    let area: CGRect
+    private(set) var slots: [Slot]
     private let gap: Double
     private var observers: [pid_t: AXObserver] = [:]
+    private static let notifications = [kAXResizedNotification, kAXMovedNotification, kAXUIElementDestroyedNotification]
 
-    init(windows: [AXUIElement], gap: Double) {
+    init(_ placement: Placement, gap: Double) {
+        screenID = placement.screenID
+        area = placement.area
         self.gap = gap
         let quiet = Date().addingTimeInterval(0.5)
-        for window in windows {
-            var pid: pid_t = 0
-            guard AXUIElementGetPid(window, &pid) == .success,
-                  let frame = WindowArranger.frame(of: window) else { continue }
-            tiles.append(Tile(window: window, pid: pid, frame: frame, quietUntil: quiet))
-        }
-        for tile in tiles { observe(tile) }
+        slots = zip(placement.frames, placement.windows).map { Slot(frame: $0, window: $1, quietUntil: quiet) }
+        for window in placement.windows.compactMap({ $0 }) { observe(window) }
     }
 
     deinit {
@@ -67,47 +67,99 @@ final class TileSession {
         }
     }
 
-    private func observe(_ tile: Tile) {
+    var windows: [AXUIElement] { slots.compactMap(\.window) }
+
+    func index(of window: AXUIElement) -> Int? {
+        slots.firstIndex { slot in slot.window.map { CFEqual($0, window) } ?? false }
+    }
+
+    /// The zone under a point, or the nearest zone when the point is in a gap.
+    func zone(at point: CGPoint) -> Int? {
+        guard area.contains(point) else { return nil }
+        return slots.indices.min { distance(point, slots[$0].frame) < distance(point, slots[$1].frame) }
+    }
+
+    /// Puts a window into a zone. A window from another zone swaps places with the occupant.
+    /// A new window replaces the occupant, which stays where it is, behind.
+    func place(_ window: AXUIElement, at index: Int) {
+        let from = self.index(of: window)
+        let occupant = slots[index].window
+        if let from, from != index {
+            slots[from].window = occupant
+            snap(from)
+        } else if from == nil {
+            if let occupant { unobserve(occupant) }
+            observe(window)
+        }
+        slots[index].window = window
+        snap(index)
+    }
+
+    func remove(_ window: AXUIElement) {
+        guard let index = index(of: window) else { return }
+        unobserve(window)
+        slots[index].window = nil
+    }
+
+    private func snap(_ index: Int) {
+        guard let window = slots[index].window else { return }
+        slots[index].quietUntil = Date().addingTimeInterval(0.4)
+        WindowArranger.setFrame(window, slots[index].frame)
+    }
+
+    private func distance(_ point: CGPoint, _ rect: CGRect) -> Double {
+        let dx = max(rect.minX - point.x, 0, point.x - rect.maxX)
+        let dy = max(rect.minY - point.y, 0, point.y - rect.maxY)
+        return hypot(dx, dy)
+    }
+
+    private func observe(_ window: AXUIElement) {
+        guard let pid = WindowArranger.pid(of: window) else { return }
         let observer: AXObserver
-        if let existing = observers[tile.pid] {
+        if let existing = observers[pid] {
             observer = existing
         } else {
             var created: AXObserver?
-            let callback: AXObserverCallback = { _, element, _, refcon in
+            let callback: AXObserverCallback = { _, element, notification, refcon in
                 guard let refcon else { return }
-                Unmanaged<TileSession>.fromOpaque(refcon).takeUnretainedValue().changed(element)
+                Unmanaged<TileSession>.fromOpaque(refcon).takeUnretainedValue().changed(element, notification as String)
             }
-            guard AXObserverCreate(tile.pid, callback, &created) == .success, let created else { return }
+            guard AXObserverCreate(pid, callback, &created) == .success, let created else { return }
             CFRunLoopAddSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(created), .defaultMode)
-            observers[tile.pid] = created
+            observers[pid] = created
             observer = created
         }
         let refcon = Unmanaged.passUnretained(self).toOpaque()
-        for name in [kAXResizedNotification, kAXMovedNotification, kAXUIElementDestroyedNotification] {
-            AXObserverAddNotification(observer, tile.window, name as CFString, refcon)
+        for name in Self.notifications {
+            AXObserverAddNotification(observer, window, name as CFString, refcon)
         }
     }
 
-    private func changed(_ element: AXUIElement) {
-        guard let index = tiles.firstIndex(where: { CFEqual($0.window, element) }) else { return }
-        guard let frame = WindowArranger.frame(of: element) else {
-            tiles.remove(at: index)
+    private func unobserve(_ window: AXUIElement) {
+        guard let pid = WindowArranger.pid(of: window), let observer = observers[pid] else { return }
+        for name in Self.notifications {
+            AXObserverRemoveNotification(observer, window, name as CFString)
+        }
+    }
+
+    private func changed(_ element: AXUIElement, _ notification: String) {
+        guard let index = index(of: element) else { return }
+        if notification == kAXUIElementDestroyedNotification as String {
+            slots[index].window = nil
             return
         }
-        let old = tiles[index].frame
-        tiles[index].frame = frame
         // Ignore echoes of frames that Tessera set itself.
-        guard Date() >= tiles[index].quietUntil else { return }
-        // A plain move is not a resize.
+        guard Date() >= slots[index].quietUntil, let frame = WindowArranger.frame(of: element) else { return }
+        let old = slots[index].frame
+        // A drag only moves the window. The drop decides where it goes.
         guard abs(frame.width - old.width) > 1 || abs(frame.height - old.height) > 1 else { return }
+        slots[index].frame = frame
 
         var others: [Int: CGRect] = [:]
-        for (i, tile) in tiles.enumerated() where i != index { others[i] = tile.frame }
-        let quiet = Date().addingTimeInterval(0.3)
-        for (i, target) in TileLinker.follow(old: old, new: frame, frames: others, gap: gap) {
-            tiles[i].frame = target
-            tiles[i].quietUntil = quiet
-            WindowArranger.setFrame(tiles[i].window, target.integral)
+        for other in slots.indices where other != index { others[other] = slots[other].frame }
+        for (other, target) in TileLinker.follow(old: old, new: frame, frames: others, gap: gap) {
+            slots[other].frame = target.integral
+            snap(other)
         }
     }
 }
