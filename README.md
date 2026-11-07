@@ -4,6 +4,8 @@ Tessera is a small menu bar app for macOS. It arranges your windows into saved l
 
 Tessera is free and open source under the [MIT License](LICENSE). You build it yourself from source. It is not on the Mac App Store, and you do not need an Apple Developer account.
 
+![Tessera demo: apply a mode, swap windows, replace a window and resize two windows together](docs/demo.gif)
+
 ## Install
 
 Run this in Terminal:
