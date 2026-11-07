@@ -2,7 +2,7 @@
 
 Tessera is a small menu bar app for macOS. It arranges your windows into saved layouts, called modes. When you resize one arranged window, the windows next to it resize with it.
 
-It is a personal tool. It is not on the Mac App Store and it does not need an Apple Developer account.
+Tessera is free and open source under the [MIT License](LICENSE). You build it yourself from source. It is not on the Mac App Store, and you do not need an Apple Developer account.
 
 ## Requirements
 
@@ -115,3 +115,21 @@ Modes are saved in the app's user defaults (`com.moe.tessera`). They do not sync
 | `Sources/Tessera/MenuPanel.swift` | Menu bar panel and mode editor UI. |
 | `Resources/Info.plist` | Bundle settings. `LSUIElement` hides the Dock icon. |
 | `build.sh` | Build, sign and install script. |
+
+## Privacy
+
+Tessera works only on your Mac and never connects to the network. It reads the position, size, app and title of windows to arrange them and to label zones. It saves modes and settings only. It never saves window titles or window contents.
+
+## Contributing
+
+Issues and pull requests are welcome. Before you open a pull request:
+
+1. Run `swift build` and fix all errors.
+2. Run `./build.sh install` and test the change on a real screen.
+3. Update this README when behavior changes.
+
+Read [AGENTS.md](AGENTS.md) for the code rules.
+
+## License
+
+[MIT](LICENSE) © 2026 Mohammed Reschreiter
