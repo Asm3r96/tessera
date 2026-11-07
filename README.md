@@ -18,7 +18,7 @@ curl -fsSL https://raw.githubusercontent.com/Asm3r96/tessera/main/install.sh | b
 2. Allow Tessera in System Settings › Privacy & Security › Accessibility. macOS asks once.
 3. Press ⌃⌥1 to test.
 
-To update, run the same command again. The Accessibility permission stays.
+Tessera checks for updates once a day. When a new version is out, the menu bar icon shows a small dot. Open the panel and click **Update**. Tessera downloads the new version, checks its signature, and restarts. You can also run the install command again. The Accessibility permission stays either way.
 
 Tessera needs macOS 14 Sonoma or later. It runs on Apple silicon and Intel.
 
@@ -85,6 +85,7 @@ When a mode is applied, drag any window by its title bar. The zones appear on sc
 - **Free:** hold Option while you drop, or drop off the tiled screen. The window leaves the layout.
 - Use the **Gap** slider to set the space between windows.
 - Turn on **Open at login** to start Tessera when you log in.
+- Turn off **Check for updates** to stop the daily update check. This switch appears only in release builds.
 
 ### Add or edit a mode
 
@@ -111,11 +112,12 @@ Modes are saved in the app's user defaults (`com.moe.tessera`). They do not sync
 
 | Path | Contents |
 | --- | --- |
-| `Sources/TesseraCore/` | Layout math and linked resize math, without AppKit. |
+| `Sources/TesseraCore/` | Layout math, linked resize math, version and release parsing, without AppKit. |
 | `Sources/TesseraChecks/main.swift` | Logic checks for TesseraCore. |
 | `Sources/Tessera/TesseraApp.swift` | App entry point and menu bar item. |
 | `Sources/Tessera/AppModel.swift` | Saved modes, settings, Accessibility check, shortcuts. |
 | `Sources/Tessera/WindowArranger.swift` | Finds windows and moves them through the Accessibility API. |
+| `Sources/Tessera/Updater.swift` | Daily update check, download, signature check and app swap. |
 | `Sources/Tessera/TileSession.swift` | Zones of the applied mode, swap and replace, linked resizing. |
 | `Sources/Tessera/DragWatcher.swift` | Detects window drags by the title bar and the drop point. |
 | `Sources/Tessera/ZoneOverlay.swift` | Click-through zone overlay for previews and drags. |
@@ -130,7 +132,7 @@ Modes are saved in the app's user defaults (`com.moe.tessera`). They do not sync
 
 ## Privacy
 
-Tessera works only on your Mac and never connects to the network. It reads the position, size, app and title of windows to arrange them and to label zones. It saves modes and settings only. It never saves window titles or window contents.
+Tessera works on your Mac. Its only network request is the update check: once a day it asks GitHub for the latest Tessera release. The request contains no data about you or your windows. Turn off **Check for updates** to stop it. Source builds never check. It reads the position, size, app and title of windows to arrange them and to label zones. It saves modes and settings only. It never saves window titles or window contents.
 
 ## Contributing
 
