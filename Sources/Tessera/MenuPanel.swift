@@ -142,14 +142,16 @@ struct ModePreview: View {
             ZStack(alignment: .topLeading) {
                 ForEach(Array(mode.zones.enumerated()), id: \.offset) { _, zone in
                     let isMain = zone == main
+                    let width = max(zone.width * geometry.size.width - 3, 0)
+                    let height = max(zone.height * geometry.size.height - 3, 0)
+                    let x = zone.minX * geometry.size.width + 1.5
+                    let y = zone.minY * geometry.size.height + 1.5
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
                         .fill(Color.accentColor.opacity(isMain ? 0.45 : 0.2))
                         .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous)
                             .strokeBorder(Color.accentColor.opacity(0.6), lineWidth: 1))
-                        .frame(width: max(zone.width * geometry.size.width - 3, 0),
-                               height: max(zone.height * geometry.size.height - 3, 0))
-                        .offset(x: zone.minX * geometry.size.width + 1.5,
-                                y: zone.minY * geometry.size.height + 1.5)
+                        .frame(width: width, height: height)
+                        .offset(x: x, y: y)
                 }
             }
         }
