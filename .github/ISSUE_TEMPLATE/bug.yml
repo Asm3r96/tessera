@@ -1,0 +1,40 @@
+name: Bug report
+description: Something does not work as expected.
+labels: [bug]
+body:
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and Mac
+      placeholder: macOS 15.3, MacBook Pro M3
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Tessera version
+      description: The release you installed, or the commit if you built from source.
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps
+      description: The steps that cause the bug.
+      placeholder: |
+        1. Apply "Focus" with ⌃⌥2.
+        2. Drag Safari onto the left zone.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and actual result
+    validations:
+      required: true
+  - type: input
+    id: apps
+    attributes:
+      label: Apps involved
+      placeholder: Safari, Spotify, VS Code

@@ -1,0 +1,18 @@
+name: Feature request
+description: Suggest an idea for Tessera.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is hard or slow today?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idea
+      description: How could Tessera help?
+    validations:
+      required: true

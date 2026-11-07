@@ -132,13 +132,7 @@ Tessera works only on your Mac and never connects to the network. It reads the p
 
 ## Contributing
 
-Issues and pull requests are welcome. Before you open a pull request:
-
-1. Run `swift build` and `swift run TesseraChecks`, and fix all failures.
-2. Run `./build.sh install` and test the change on a real screen.
-3. Update this README when behavior changes.
-
-Read [AGENTS.md](AGENTS.md) for the code rules.
+Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before you open a pull request.
 
 ## License
 
