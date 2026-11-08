@@ -99,6 +99,15 @@ kbd { font:inherit; }
 .zc b.muted { color:var(--muted); font-weight:500; }
 .zc small { font-size:12.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
 .zone.hot .zc small { color:var(--accent); font-weight:600; }
+/* While dragging: a faint zone outline, and the drop target in its center */
+.zone.drag { background:none; border:1.5px dashed rgba(10,132,255,.35); display:block; }
+.tgt { position:absolute; border-radius:12px; background:rgba(10,132,255,.1); border:1.5px solid rgba(10,132,255,.45); display:grid; place-items:center; transition:background .12s, border-color .12s; }
+.tgt.near { background:rgba(10,132,255,.2); border-color:rgba(10,132,255,.75); }
+.tgt.hot { background:rgba(10,132,255,.3); border:3px solid rgba(10,132,255,.95); }
+.tgt.hot .zc { transform:scale(1.05); }
+.tgt.hot .zc small { color:var(--accent); font-weight:600; }
+.tgt .zc small { white-space:normal; }
+.float { position:absolute; left:50%; bottom:96px; transform:translateX(-50%); padding:7px 14px; border-radius:999px; background:rgba(255,255,255,.85); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px); box-shadow:0 4px 14px rgba(0,0,0,.12); font-size:13px; font-weight:600; white-space:nowrap; }
 
 .ic { display:grid; place-items:center; color:#fff; box-shadow:inset 0 0 0 .5px rgba(255,255,255,.4), 0 1px 2px rgba(0,0,0,.2); }
 .ic svg { width:58%; height:58%; }
@@ -280,7 +289,7 @@ footer a:hover { color:var(--ink); text-decoration:none; }
       <h4>Tessera</h4>
       <div class="modes" id="modes"></div>
       <div class="prow"><label for="gap">Gap</label><input id="gap" type="range" min="0" max="24" step="2" value="8"><output id="gapv">8 pt</output></div>
-      <p class="cap">Hover a mode to preview it. Drag a window onto a zone to swap or replace. Hold ⌘ to add a tab.</p>
+      <p class="cap">Hover a mode to preview it. Drag a window onto a zone’s center to swap or replace. Drop elsewhere to float it.</p>
     </div>
     <div class="zones" id="zones"></div>
     <div class="hint" id="hint"></div>
@@ -473,15 +482,21 @@ footer a:hover { color:var(--ink); text-decoration:none; }
   // Zones overlay
   var lastKey = '';
   function renderZones(items) {
-    var key = JSON.stringify(items.map(function (z) { return [z.f, z.win && z.win.app, z.hot, z.detail]; }));
+    var floatText = arguments[1] || '';
+    var key = JSON.stringify(items.map(function (z) { return [z.f, z.win && z.win.app, z.hot, z.near, z.drag, z.detail]; })) + floatText;
     if (key !== lastKey) {
       lastKey = key;
       zonesEl.innerHTML = items.map(function (z) {
         var app = z.win ? APPS[z.win.app] : null;
-        return '<div class="zone' + (z.hot ? ' hot' : '') + '" style="left:' + z.f.x + 'px;top:' + z.f.y + 'px;width:' + z.f.w + 'px;height:' + z.f.h + 'px"><div class="zc">'
+        var card = '<div class="zc">'
           + (app ? '<span class="ic" style="background:' + app.bg + '">' + app.icon + '</span><b>' + app.name + '</b>' : '<b class="muted">Empty</b>')
-          + (z.detail ? '<small>' + z.detail + '</small>' : '') + '</div></div>';
-      }).join('');
+          + (z.detail ? '<small>' + z.detail + '</small>' : '') + '</div>';
+        var box = 'left:' + z.f.x + 'px;top:' + z.f.y + 'px;width:' + z.f.w + 'px;height:' + z.f.h + 'px';
+        if (!z.drag) return '<div class="zone' + (z.hot ? ' hot' : '') + '" style="' + box + '">' + card + '</div>';
+        var t = target(z.f);
+        return '<div class="zone drag" style="' + box + '"><div class="tgt' + (z.hot ? ' hot' : z.near ? ' near' : '')
+          + '" style="left:' + (t.x - z.f.x) + 'px;top:' + (t.y - z.f.y) + 'px;width:' + t.w + 'px;height:' + t.h + 'px">' + card + '</div></div>';
+      }).join('') + (floatText ? '<div class="float">' + floatText + '</div>' : '');
     }
     zonesEl.classList.add('show');
   }
@@ -514,16 +529,18 @@ footer a:hover { color:var(--ink); text-decoration:none; }
     Array.prototype.forEach.call(modesEl.children, function (b, i) { b.classList.toggle('on', !!session && session.mode === i); });
   }
 
-  // Drag to swap, replace or free
+  // Drag to swap, replace or float. Only the center of a zone takes a drop, after a short rest.
+  var REST = 300;
+  function target(f) {
+    var w = Math.min(f.w, Math.max(f.w * 0.6, 110)), h = Math.min(f.h, Math.max(f.h * 0.6, 80));
+    return { x: f.x + (f.w - w) / 2, y: f.y + (f.h - h) / 2, w: w, h: h };
+  }
   function zoneAt(p) {
-    var a = area();
-    if (p.y < a.y || p.y > a.y + a.h) return -1;
-    var best = -1, bd = Infinity;
-    session.slots.forEach(function (s, i) {
-      var f = s.f, dx = Math.max(f.x - p.x, 0, p.x - f.x - f.w), dy = Math.max(f.y - p.y, 0, p.y - f.y - f.h), d = Math.hypot(dx, dy);
-      if (d < bd) { bd = d; best = i; }
-    });
-    return best;
+    for (var i = 0; i < session.slots.length; i++) {
+      var t = target(session.slots[i].f);
+      if (p.x >= t.x && p.x <= t.x + t.w && p.y >= t.y && p.y <= t.y + t.h) return i;
+    }
+    return -1;
   }
   function action(w, i) {
     var occ = session.slots[i].win;
@@ -536,27 +553,37 @@ footer a:hover { color:var(--ink); text-decoration:none; }
     e.preventDefault();
     var bar = e.currentTarget;
     bar.setPointerCapture(e.pointerId);
-    var p0 = pt(e), f0 = w.f, moved = false, hot = -1;
+    var p0 = pt(e), f0 = w.f, moved = false, hot = -1, near = -1, since = 0, timer = 0, last = p0, alt = false;
+    function draw() {
+      if (!session || alt) { hot = -1; hideZones(); return; }
+      near = zoneAt(last);
+      hot = near >= 0 && Date.now() - since >= REST ? near : -1;
+      renderZones(session.slots.map(function (s, i) {
+        return { f: s.f, win: s.win, drag: true, near: i === near, hot: i === hot,
+                 detail: i === hot ? action(w, i) : (s.win ? '' : 'Drop a window here') };
+      }), near < 0 ? 'Float here' : '');
+    }
     function move(ev) {
       var p = pt(ev);
       if (!moved && Math.hypot(p.x - p0.x, p.y - p0.y) < 4) return;
       moved = true;
       mac.classList.add('dragging');
       setFrame(w, { x: f0.x + p.x - p0.x, y: Math.max(MENU, f0.y + p.y - p0.y), w: f0.w, h: f0.h });
-      if (session && !ev.altKey) {
-        hot = zoneAt(p);
-        renderZones(session.slots.map(function (s, i) {
-          return { f: s.f, win: s.win, hot: i === hot, detail: i === hot ? action(w, i) : (s.win ? '' : 'Drop a window here') };
-        }));
-      } else {
-        hot = -1;
-        hideZones();
+      last = p;
+      alt = ev.altKey;
+      var now = session ? zoneAt(p) : -1;
+      if (now !== near) {
+        since = Date.now();
+        clearTimeout(timer);
+        if (now >= 0) timer = setTimeout(draw, REST + 20);
       }
+      draw();
     }
     function up(ev) {
       bar.removeEventListener('pointermove', move);
       bar.removeEventListener('pointerup', up);
       bar.removeEventListener('pointercancel', up);
+      clearTimeout(timer);
       mac.classList.remove('dragging');
       hideZones();
       if (!moved || !session) return;
@@ -642,8 +669,8 @@ footer a:hover { color:var(--ink); text-decoration:none; }
   var TEXT = {
     start: 'Click the Tessera icon in the menu bar ↗',
     panel: 'Hover a mode to preview it. Click it to tile.',
-    apply: 'Drag a window by its title bar onto another zone to swap.',
-    swap: 'Open an app from the Dock, then drag it onto a zone.',
+    apply: 'Drag a window by its title bar onto the center of another zone to swap.',
+    swap: 'Open an app from the Dock, then drag it onto the center of a zone.',
     replace: 'Drag the edge between two windows. Both resize.',
     resize: 'That is Tessera. Install it with the command above.'
   };
