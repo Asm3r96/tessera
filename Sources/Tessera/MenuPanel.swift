@@ -78,6 +78,7 @@ struct MenuPanel: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
+                if updater.isRelease { updateCheckButton }
                 Spacer()
                 Button("Quit") { NSApp.terminate(nil) }
             }
@@ -86,6 +87,29 @@ struct MenuPanel: View {
     }
 
     static let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+
+    /// Checks for an update now. Shows a short result next to the version.
+    @ViewBuilder
+    private var updateCheckButton: some View {
+        switch updater.manual {
+        case .checking:
+            ProgressView().controlSize(.mini).accessibilityLabel("Checking for updates")
+        case .upToDate:
+            Label("Up to date", systemImage: "checkmark").font(.caption).foregroundStyle(.secondary)
+        case .failed:
+            Label("Can’t check now", systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.secondary)
+        case .idle:
+            Button {
+                updater.checkNow()
+            } label: {
+                Image(systemName: "arrow.clockwise").font(.caption)
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.secondary)
+            .help("Check for updates")
+            .accessibilityLabel("Check for updates")
+        }
+    }
 
     private func updateBanner(_ release: Release) -> some View {
         VStack(alignment: .leading, spacing: 8) {

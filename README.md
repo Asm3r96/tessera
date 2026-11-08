@@ -18,7 +18,7 @@ curl -fsSL https://raw.githubusercontent.com/Asm3r96/tessera/main/install.sh | b
 2. Allow Tessera in System Settings › Privacy & Security › Accessibility. macOS asks once.
 3. Press ⌃⌥1 to test.
 
-Tessera checks for updates once a day. When a new version is out, the menu bar icon shows a small dot. Open the panel and click **Update**. Tessera downloads the new version, checks its signature, and restarts. You can also run the install command again. The Accessibility permission stays either way.
+Tessera checks for updates once a day. To check now, click the refresh icon next to the version in the panel. When a new version is out, the menu bar icon shows a small dot. Open the panel and click **Update**. Tessera downloads the new version, checks its signature, and restarts. You can also run the install command again. The Accessibility permission stays either way.
 
 Tessera needs macOS 14 Sonoma or later. It runs on Apple silicon and Intel.
 
@@ -99,7 +99,7 @@ A zone can hold more than one window. The windows share the zone's size and plac
 
 - Use the **Gap** slider to set the space between windows.
 - Turn on **Open at login** to start Tessera when you log in.
-- Turn off **Check for updates** to stop the daily update check. This switch appears only in release builds.
+- Turn off **Check for updates** to stop the daily update check. The refresh icon next to the version still checks when you click it. Both appear only in release builds.
 
 ### Add or edit a mode
 
@@ -147,7 +147,7 @@ Modes are saved in the app's user defaults (`com.moe.tessera`). They do not sync
 
 ## Privacy
 
-Tessera works on your Mac. Its only network request is the update check: once a day it asks GitHub for the latest Tessera release. The request contains no data about you or your windows. Turn off **Check for updates** to stop it. Source builds never check. It reads the position, size, app and title of windows to arrange them and to label zones. It saves modes and settings only. It never saves window titles or window contents.
+Tessera works on your Mac. Its only network request is the update check: once a day it asks GitHub for the latest Tessera release. The request contains no data about you or your windows. Turn off **Check for updates** to stop the daily check. Then Tessera asks GitHub only when you click the refresh icon. Source builds never check. It reads the position, size, app and title of windows to arrange them and to label zones. It saves modes and settings only. It never saves window titles or window contents.
 
 ## Contributing
 
