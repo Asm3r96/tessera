@@ -31,6 +31,8 @@ final class AppModel: ObservableObject {
     private var sessions: [CGDirectDisplayID: TileSession] = [:]
     private var dragItems: [CGDirectDisplayID: [ZoneItem]] = [:]
     private var dragTarget: String?
+    private var arming = DropArming()
+    private var armingScreen: CGDirectDisplayID?
 
     private enum Keys {
         static let modes = "modes"
@@ -161,6 +163,7 @@ final class AppModel: ObservableObject {
         let placement = WindowArranger.plan(mode, on: screen, gap: gap, keep: sessions[screen.displayID]?.windows ?? [])
         let items = placement.frames.indices.map { index in
             var item = zoneItem(index, placement.frames[index], placement.stacks[index].first, empty: "Stays empty")
+            item.target = nil
             if placement.stacks[index].count > 1 { item.detail = "+\(placement.stacks[index].count - 1) as tabs" }
             return item
         }
@@ -176,55 +179,83 @@ final class AppModel: ObservableObject {
             session.slots.enumerated().map { zoneItem($0, $1.frame, $1.window, empty: "Drop a window here") }
         }
         dragTarget = nil
+        arming = DropArming()
+        armingScreen = nil
         return true
+    }
+
+    /// The screen and zone whose center target is under the point, or nil. Option always means no target.
+    private func hit(_ point: CGPoint, mode: DropMode) -> (screen: CGDirectDisplayID, zone: Int)? {
+        guard mode != .free, let (id, session) = sessions.first(where: { $0.value.area.contains(point) }),
+              let zone = session.target(at: point) else { return nil }
+        return (id, zone)
+    }
+
+    /// The target under the pointer, once the pointer has rested on it.
+    private func armedHit(_ point: CGPoint, mode: DropMode) -> (screen: CGDirectDisplayID, zone: Int)? {
+        let hit = hit(point, mode: mode)
+        guard let hit, hit.screen == armingScreen, arming.armed(at: Date()) == hit.zone else { return nil }
+        return hit
     }
 
     private func moveDrag(_ window: AXUIElement, _ point: CGPoint, mode: DropMode, fromBar: Bool = false) {
         if fromBar, dragItems.isEmpty { _ = beginDrag(window) }
-        let free = mode == .free
-        let target = free ? nil : sessions.first { $0.value.area.contains(point) }
-        let index = target?.value.zone(at: point)
-        let key = free ? "free" : "\(target?.key ?? 0)-\(index ?? -1)-\(mode)"
+        let hit = hit(point, mode: mode)
+        if hit?.screen != armingScreen { arming = DropArming() }
+        armingScreen = hit?.screen
+        arming.update(hit?.zone, at: Date())
+        let armed = armedHit(point, mode: mode)
+        let key = "\(hit?.screen ?? 0)-\(hit?.zone ?? -1)-\(armed != nil)-\(mode)"
         guard key != dragTarget else { return }
         dragTarget = key
-        guard !free else {
+        if hit != nil, armed == nil {
+            // Show the target as armed once the pointer has rested, even without another move.
+            DispatchQueue.main.asyncAfter(deadline: .now() + DropArming.delay + 0.02) { [weak self] in
+                guard let self, !self.dragItems.isEmpty else { return }
+                self.moveDrag(window, Screens.mouse, mode: mode, fromBar: fromBar)
+            }
+        }
+        guard mode != .free else {
             overlay.hideAll()
             return
         }
         for (id, session) in sessions {
             var items = dragItems[id] ?? []
-            if id == target?.key, let index, items.indices.contains(index) {
-                items[index].highlighted = true
-                items[index].detail = fromBar ? barAction(for: window, in: session, at: index)
-                                              : action(for: window, in: session, at: index, mode: mode)
+            if id == hit?.screen, let zone = hit?.zone, items.indices.contains(zone) {
+                items[zone].highlighted = armed != nil
+                items[zone].hovered = true
+                if armed != nil {
+                    items[zone].detail = fromBar ? barAction(for: window, in: session, at: zone)
+                                                 : action(for: window, in: session, at: zone, mode: mode)
+                }
             }
-            overlay.show(screenID: id, area: session.area, items: items)
+            let floating = hit == nil && session.area.contains(point)
+            overlay.show(screenID: id, area: session.area, items: items,
+                         banner: floating ? (fromBar ? "Drop on a zone’s center to move this tab" : "Float here") : nil)
         }
     }
 
-    /// Drop on a zone to place the window. Hold Command to add it as a tab.
-    /// Drop with Option held, or off the tiled screens, to free it.
+    /// Drop on a zone's center target to place the window. Hold Command to add it as a tab.
+    /// Drop anywhere else, or with Option held, to leave the window floating.
     private func drop(_ window: AXUIElement, _ point: CGPoint, mode: DropMode) {
+        let armed = armedHit(point, mode: mode)
         endDrag()
-        let target = mode == .free ? nil : sessions.first { $0.value.area.contains(point) }
-        for (id, session) in sessions where id != target?.key { session.remove(window) }
-        guard let session = target?.value, let index = session.zone(at: point) else {
-            target?.value.remove(window)
-            return
-        }
+        let target = armed.flatMap { sessions[$0.screen] }
+        for session in sessions.values where session !== target { session.remove(window) }
+        guard let session = target, let index = armed?.zone else { return }
         // Let the system finish the drag before Tessera moves the window.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             if mode == .tab { session.addTab(window, at: index) } else { session.place(window, at: index) }
         }
     }
 
-    /// A tab dragged out of its bar moves to the zone under the pointer, on top. Elsewhere it stays.
+    /// A tab dragged out of its bar moves to the zone whose center it is dropped on, on top. Elsewhere it stays.
     private func dropFromBar(_ window: AXUIElement, _ point: CGPoint) {
+        let armed = armedHit(point, mode: .place)
         endDrag()
-        guard let target = sessions.first(where: { $0.value.area.contains(point) })?.value,
-              let index = target.zone(at: point) else { return }
+        guard let armed, let target = sessions[armed.screen] else { return }
         if let source = session(of: window), source !== target { source.remove(window) }
-        target.addTab(window, at: index)
+        target.addTab(window, at: armed.zone)
         WindowArranger.focus(window)
     }
 
@@ -232,6 +263,8 @@ final class AppModel: ObservableObject {
         overlay.hideAll()
         dragItems = [:]
         dragTarget = nil
+        arming = DropArming()
+        armingScreen = nil
     }
 
     private func action(for window: AXUIElement, in session: TileSession, at index: Int, mode: DropMode) -> String {

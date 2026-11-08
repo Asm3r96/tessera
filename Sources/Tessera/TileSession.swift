@@ -55,6 +55,11 @@ final class TileSession {
         return slots.indices.min { distance(point, slots[$0].frame) < distance(point, slots[$1].frame) }
     }
 
+    /// The zone whose drop target, the box in its center, contains the point.
+    func target(at point: CGPoint) -> Int? {
+        slots.indices.first { DropTarget.rect(in: slots[$0].frame).contains(point) }
+    }
+
     /// Puts a window into a zone. A window from another zone swaps places with the shown tab there.
     /// A new window replaces the shown tab, which stays where it is, behind.
     func place(_ window: AXUIElement, at index: Int) {

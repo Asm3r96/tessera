@@ -138,5 +138,26 @@ check(Stacking.distribute(2, zones: 3) == [[0], [1], []], "fewer windows than zo
 check(Stacking.distribute(5, zones: 2) == [[0, 2, 4], [1, 3]], "extra windows become tabs, zone by zone")
 check(Stacking.distribute(3, zones: 0).isEmpty, "no zones, no stacks")
 
+// Drop targets
+let wide = CGRect(x: 0, y: 0, width: 1000, height: 800)
+check(near(DropTarget.rect(in: wide), CGRect(x: 200, y: 160, width: 600, height: 480)), "the target is the center 60%")
+let narrow = CGRect(x: 100, y: 0, width: 250, height: 200)
+check(near(DropTarget.rect(in: narrow), CGRect(x: 135, y: 30, width: 180, height: 140)), "a small zone keeps a minimum target")
+let tiny = CGRect(x: 0, y: 0, width: 150, height: 100)
+check(near(DropTarget.rect(in: tiny), tiny), "the target never grows past its zone")
+check(!DropTarget.rect(in: wide).contains(CGPoint(x: 50, y: 400)), "a drop near the edge misses the target")
+
+let start = Date()
+var arming = DropArming()
+arming.update(2, at: start)
+check(arming.armed(at: start.addingTimeInterval(0.1)) == nil, "a quick pass does not arm the target")
+check(arming.armed(at: start.addingTimeInterval(0.35)) == 2, "a rest arms the target")
+arming.update(2, at: start.addingTimeInterval(0.4))
+check(arming.armed(at: start.addingTimeInterval(0.45)) == 2, "staying on the target keeps it armed")
+arming.update(1, at: start.addingTimeInterval(0.5))
+check(arming.armed(at: start.addingTimeInterval(0.6)) == nil, "a new target starts the wait again")
+arming.update(nil, at: start.addingTimeInterval(0.7))
+check(arming.armed(at: start.addingTimeInterval(2)) == nil, "off every target, nothing is armed")
+
 print(failures == 0 ? "All \(count) checks passed." : "\(failures) of \(count) checks failed.")
 exit(failures == 0 ? 0 : 1)
