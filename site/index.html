@@ -107,7 +107,26 @@ kbd { font:inherit; }
 .tgt.hot .zc { transform:scale(1.05); }
 .tgt.hot .zc small { color:var(--accent); font-weight:600; }
 .tgt .zc small { white-space:normal; }
-.float { position:absolute; left:50%; bottom:96px; transform:translateX(-50%); padding:7px 14px; border-radius:999px; background:rgba(255,255,255,.85); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px); box-shadow:0 4px 14px rgba(0,0,0,.12); font-size:13px; font-weight:600; white-space:nowrap; }
+/* Tabs: marks on a zone's top edge; resting on them opens the tab bar */
+.tabbars { position:absolute; inset:0; pointer-events:none; z-index:800; }
+.tb { position:absolute; transform:translateX(-50%); pointer-events:auto; display:flex; justify-content:center; }
+.tb .marks { display:flex; gap:4px; align-items:center; height:14px; padding:0 7px; border-radius:999px; background:rgba(255,255,255,.75); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); box-shadow:0 1px 4px rgba(0,0,0,.15); cursor:pointer; }
+.tb .marks i { display:block; width:12px; height:5px; border-radius:3px; background:rgba(10,132,255,.45); transition:width .15s; }
+.tb .marks i.on { width:22px; background:var(--accent); }
+.tb .bar2 { display:none; align-items:center; gap:4px; padding:5px; border-radius:12px; background:rgba(255,255,255,.88); -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); box-shadow:0 6px 20px rgba(0,0,0,.18), 0 0 0 .5px rgba(0,0,0,.12); white-space:nowrap; }
+.tb:hover .marks, .tb:focus-within .marks { display:none; }
+.tb:hover .bar2, .tb:focus-within .bar2 { display:flex; }
+.tb button { border:0; background:none; font:inherit; color:inherit; cursor:pointer; }
+.tb .step { width:22px; height:28px; border-radius:7px; color:var(--muted); font-size:15px; }
+.tb .chip { display:flex; align-items:center; gap:6px; height:30px; padding:0 4px 0 8px; border-radius:8px; font-size:13px; max-width:150px; }
+.tb .chip:hover { background:rgba(0,0,0,.06); }
+.tb .chip.on { background:rgba(10,132,255,.18); font-weight:600; }
+.tb .chip .ic { width:18px; height:18px; border-radius:5px; flex:none; }
+.tb .chip .ic svg { width:12px; height:12px; }
+.tb .chip .x { width:16px; height:16px; border-radius:4px; display:grid; place-items:center; font-size:11px; color:var(--muted); opacity:0; }
+.tb .chip:hover .x, .tb .chip .x:focus-visible { opacity:1; }
+.tb .chip .x:hover { background:rgba(0,0,0,.1); }
+.float { position:absolute; left:50%; bottom:132px; transform:translateX(-50%); padding:7px 14px; border-radius:999px; background:rgba(255,255,255,.85); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px); box-shadow:0 4px 14px rgba(0,0,0,.12); font-size:13px; font-weight:600; white-space:nowrap; }
 
 .ic { display:grid; place-items:center; color:#fff; box-shadow:inset 0 0 0 .5px rgba(255,255,255,.4), 0 1px 2px rgba(0,0,0,.2); }
 .ic svg { width:58%; height:58%; }
@@ -121,7 +140,7 @@ kbd { font:inherit; }
 .dock button span { position:absolute; bottom:64px; left:50%; transform:translateX(-50%); padding:3px 9px; border-radius:6px; background:rgba(40,40,45,.85); color:#fff; font-size:12px; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .1s; }
 .dock button:hover span { opacity:1; }
 
-.hint { position:absolute; left:50%; top:42px; transform:translate(-50%,-4px); z-index:950; padding:8px 16px; border-radius:999px; background:rgba(20,20,30,.62); color:#fff; font-size:13.5px; font-weight:500; white-space:nowrap; -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); opacity:0; transition:opacity .3s, transform .3s; pointer-events:none; }
+.hint { position:absolute; left:50%; top:auto; bottom:84px; transform:translate(-50%,4px); z-index:950; padding:8px 16px; border-radius:999px; background:rgba(20,20,30,.62); color:#fff; font-size:13.5px; font-weight:500; white-space:nowrap; -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); opacity:0; transition:opacity .3s, transform .3s; pointer-events:none; }
 .hint.show { opacity:1; transform:translate(-50%,0); }
 
 .b-browser .url { margin:10px auto 6px; width:62%; height:24px; border-radius:7px; background:#f0f0f3; font-size:12px; color:#8e8e93; display:grid; place-items:center; }
@@ -289,13 +308,14 @@ footer a:hover { color:var(--ink); text-decoration:none; }
       <h4>Tessera</h4>
       <div class="modes" id="modes"></div>
       <div class="prow"><label for="gap">Gap</label><input id="gap" type="range" min="0" max="24" step="2" value="8"><output id="gapv">8 pt</output></div>
-      <p class="cap">Hover a mode to preview it. Drag a window onto a zone’s center to swap or replace. Drop elsewhere to float it.</p>
+      <p class="cap">Hover a mode to preview it. Drag a window onto a zone’s center to swap or replace. Hold ⌘ to add a tab. Drop elsewhere to float it.</p>
     </div>
+    <div class="tabbars" id="tabbars"></div>
     <div class="zones" id="zones"></div>
     <div class="hint" id="hint"></div>
     <div class="dock" id="dock"></div>
   </div>
-  <p class="note">This is a simulation in your browser. Shortcuts work here too: ⌃⌥1 to ⌃⌥5.</p>
+  <p class="note">This is a simulation in your browser. Shortcuts work here too: ⌃⌥1 to ⌃⌥5, and ⌃⌥` to switch tabs.</p>
 </section>
 
 <section class="section">
@@ -421,7 +441,8 @@ footer a:hover { color:var(--ink); text-decoration:none; }
   }
 
   var stack = [];      // windows, back to front
-  var session = null;  // { mode, slots: [{ f, win }] }
+  var session = null;  // { mode, slots: [{ f, win, tabs }] }. win is the shown tab.
+  var tabbars = document.getElementById('tabbars');
   var cascade = 0;
 
   function setFrame(w, f, anim) {
@@ -441,8 +462,80 @@ footer a:hover { color:var(--ink); text-decoration:none; }
   }
   function slotOf(w) {
     if (!session) return -1;
-    for (var i = 0; i < session.slots.length; i++) if (session.slots[i].win === w) return i;
+    for (var i = 0; i < session.slots.length; i++) if (session.slots[i].tabs.indexOf(w) >= 0) return i;
     return -1;
+  }
+  function slot(f, wins) { return { f: f, win: wins[0] || null, tabs: wins.slice() }; }
+
+  // Tabs
+  function unslot(w) {
+    var i = slotOf(w);
+    if (i < 0) return;
+    var s = session.slots[i], k = s.tabs.indexOf(w);
+    s.tabs.splice(k, 1);
+    if (s.win === w) {
+      s.win = s.tabs[Math.min(k, s.tabs.length - 1)] || null;
+      if (s.win) front(s.win);
+    }
+  }
+  function showTab(w) {
+    var i = slotOf(w);
+    if (i < 0) return;
+    session.slots[i].win = w;
+    setFrame(w, session.slots[i].f);
+    front(w);
+    renderTabs();
+  }
+  function cycleTab(d) {
+    if (!session) return;
+    var top = stack[stack.length - 1], i = top ? slotOf(top) : -1;
+    if (i < 0 || session.slots[i].tabs.length < 2) {
+      i = -1;
+      session.slots.forEach(function (s, k) { if (i < 0 && s.tabs.length > 1) i = k; });
+    }
+    if (i < 0) return;
+    var s = session.slots[i], n = s.tabs.length, k = s.tabs.indexOf(s.win);
+    showTab(s.tabs[((k + d) % n + n) % n]);
+  }
+  function renderTabs() {
+    if (!session) { tabbars.innerHTML = ''; return; }
+    tabbars.innerHTML = session.slots.map(function (s, i) {
+      if (s.tabs.length < 2) return '';
+      var marks = s.tabs.map(function (w) { return '<i' + (w === s.win ? ' class="on"' : '') + '></i>'; }).join('');
+      var chips = s.tabs.map(function (w, k) {
+        var app = APPS[w.app];
+        return '<span class="chip' + (w === s.win ? ' on' : '') + '"><button type="button" data-show="' + k + '" style="display:flex;align-items:center;gap:6px;min-width:0">'
+          + '<span class="ic" style="background:' + app.bg + '">' + app.icon + '</span><span style="overflow:hidden;text-overflow:ellipsis">' + app.name + '</span></button>'
+          + '<button type="button" class="x" data-close="' + k + '" aria-label="Close ' + app.name + '">✕</button></span>';
+      }).join('');
+      return '<div class="tb" data-slot="' + i + '" style="left:' + (s.f.x + s.f.w / 2) + 'px;top:' + (s.f.y - 7) + 'px">'
+        + '<div class="marks" role="button" tabindex="0" aria-label="' + s.tabs.length + ' tabs">' + marks + '</div>'
+        + '<div class="bar2"><button type="button" class="step" data-step="-1" aria-label="Previous tab">‹</button>' + chips
+        + '<button type="button" class="step" data-step="1" aria-label="Next tab">›</button></div></div>';
+    }).join('');
+  }
+  tabbars.addEventListener('click', function (e) {
+    var tb = e.target.closest('.tb');
+    if (!tb || !session) return;
+    var s = session.slots[+tb.getAttribute('data-slot')];
+    var b = e.target.closest('button');
+    if (!s || !b) return;
+    if (b.hasAttribute('data-show')) showTab(s.tabs[+b.getAttribute('data-show')]);
+    else if (b.hasAttribute('data-close')) close(s.tabs[+b.getAttribute('data-close')]);
+    else if (b.hasAttribute('data-step')) {
+      var n = s.tabs.length, k = s.tabs.indexOf(s.win);
+      showTab(s.tabs[((k + +b.getAttribute('data-step')) % n + n) % n]);
+    }
+  });
+  function addTab(w, i) {
+    unslot(w);
+    var s = session.slots[i];
+    s.tabs.push(w);
+    s.win = w;
+    setFrame(w, s.f, true);
+    front(w);
+    renderTabs();
+    advance('tab');
   }
   function pt(e) { var r = mac.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
 
@@ -460,7 +553,11 @@ footer a:hover { color:var(--ink); text-decoration:none; }
     rel = rel || { x: 0.2 + n * 0.03, y: 0.08 + n * 0.04, w: 0.44, h: 0.62 };
     setFrame(w, round({ x: a.x + rel.x * a.w, y: a.y + rel.y * a.h, w: rel.w * a.w, h: rel.h * a.h }));
     front(w);
-    el.addEventListener('pointerdown', function () { front(w); }, true);
+    el.addEventListener('pointerdown', function () {
+      front(w);
+      var i = slotOf(w);
+      if (i >= 0 && session.slots[i].win !== w) { session.slots[i].win = w; renderTabs(); }
+    }, true);
     var closeBtn = el.querySelector('.lights button');
     closeBtn.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
     closeBtn.addEventListener('click', function () { close(w); });
@@ -472,9 +569,9 @@ footer a:hover { color:var(--ink); text-decoration:none; }
     return w;
   }
   function close(w) {
-    var i = slotOf(w);
-    if (i >= 0) session.slots[i].win = null;
     stack.splice(stack.indexOf(w), 1);
+    unslot(w);
+    renderTabs();
     w.el.remove();
     updateDock();
   }
@@ -503,27 +600,40 @@ footer a:hover { color:var(--ink); text-decoration:none; }
   function hideZones() { zonesEl.classList.remove('show'); lastKey = ''; }
 
   // Modes
+  // Shown windows keep their order, then the waiting tabs, then the rest front to back.
+  // Extra windows join the zones as tabs, zone by zone.
   function plan(i) {
-    var keep = session ? session.slots.map(function (s) { return s.win; }).filter(Boolean) : [];
+    var keep = [];
+    if (session) {
+      session.slots.forEach(function (s) { if (s.win) keep.push(s.win); });
+      session.slots.forEach(function (s) { s.tabs.forEach(function (w) { if (keep.indexOf(w) < 0) keep.push(w); }); });
+    }
     var rest = stack.slice().reverse().filter(function (w) { return keep.indexOf(w) < 0; });
-    var order = keep.concat(rest);
-    return frames(MODES[i]).map(function (f, k) { return { f: f, win: order[k] || null }; });
+    var order = keep.concat(rest), fs = frames(MODES[i]);
+    var groups = fs.map(function () { return []; });
+    order.forEach(function (w, k) { groups[k % fs.length].push(w); });
+    return fs.map(function (f, k) { return slot(f, groups[k]); });
   }
   function preview(i) {
-    renderZones(plan(i).map(function (s) { return { f: s.f, win: s.win, detail: s.win ? '' : 'Stays empty' }; }));
+    renderZones(plan(i).map(function (s) {
+      return { f: s.f, win: s.win, detail: s.tabs.length > 1 ? '+' + (s.tabs.length - 1) + ' as tab' : (s.win ? '' : 'Stays empty') };
+    }));
   }
   function apply(i) {
     session = { mode: i, slots: plan(i) };
-    session.slots.forEach(function (s) { if (s.win) setFrame(s.win, s.f, true); });
+    session.slots.forEach(function (s) { s.tabs.forEach(function (w) { setFrame(w, s.f, true); }); });
+    session.slots.slice().reverse().forEach(function (s) { if (s.win) front(s.win); });
+    renderTabs();
     hideZones();
     markActive();
     advance('apply');
   }
   function relayout(anim) {
     if (!session) return;
-    var wins = session.slots.map(function (s) { return s.win; });
-    session.slots = frames(MODES[session.mode]).map(function (f, k) { return { f: f, win: wins[k] }; });
-    session.slots.forEach(function (s) { if (s.win) setFrame(s.win, s.f, anim); });
+    var old = session.slots;
+    session.slots = frames(MODES[session.mode]).map(function (f, k) { return { f: f, win: old[k].win, tabs: old[k].tabs }; });
+    session.slots.forEach(function (s) { s.tabs.forEach(function (w) { setFrame(w, s.f, anim); }); });
+    renderTabs();
   }
   function markActive() {
     Array.prototype.forEach.call(modesEl.children, function (b, i) { b.classList.toggle('on', !!session && session.mode === i); });
@@ -542,10 +652,11 @@ footer a:hover { color:var(--ink); text-decoration:none; }
     }
     return -1;
   }
-  function action(w, i) {
-    var occ = session.slots[i].win;
+  function action(w, i, tab) {
+    var s = session.slots[i], occ = s.win;
+    if (tab) return s.tabs.indexOf(w) >= 0 ? 'Already a tab here' : (occ ? 'Add as tab' : 'Move here');
     if (!occ) return 'Move here';
-    if (occ === w) return 'Keep here';
+    if (s.tabs.indexOf(w) >= 0) return 'Keep here';
     return (slotOf(w) < 0 ? 'Replace ' : 'Swap with ') + APPS[occ.app].name;
   }
   function drag(w, e) {
@@ -553,14 +664,17 @@ footer a:hover { color:var(--ink); text-decoration:none; }
     e.preventDefault();
     var bar = e.currentTarget;
     bar.setPointerCapture(e.pointerId);
-    var p0 = pt(e), f0 = w.f, moved = false, hot = -1, near = -1, since = 0, timer = 0, last = p0, alt = false;
+    var p0 = pt(e), f0 = w.f, moved = false, hot = -1, near = -1, since = 0, timer = 0, last = p0, alt = false, cmd = false;
+    function keys(ev) { if (moved && (ev.key === 'Meta' || ev.key === 'Alt')) { cmd = ev.metaKey; alt = ev.altKey; draw(); } }
+    window.addEventListener('keydown', keys);
+    window.addEventListener('keyup', keys);
     function draw() {
       if (!session || alt) { hot = -1; hideZones(); return; }
       near = zoneAt(last);
       hot = near >= 0 && Date.now() - since >= REST ? near : -1;
       renderZones(session.slots.map(function (s, i) {
         return { f: s.f, win: s.win, drag: true, near: i === near, hot: i === hot,
-                 detail: i === hot ? action(w, i) : (s.win ? '' : 'Drop a window here') };
+                 detail: i === hot ? action(w, i, cmd) : (s.win ? '' : 'Drop a window here') };
       }), near < 0 ? 'Float here' : '');
     }
     function move(ev) {
@@ -571,6 +685,7 @@ footer a:hover { color:var(--ink); text-decoration:none; }
       setFrame(w, { x: f0.x + p.x - p0.x, y: Math.max(MENU, f0.y + p.y - p0.y), w: f0.w, h: f0.h });
       last = p;
       alt = ev.altKey;
+      cmd = ev.metaKey;
       var now = session ? zoneAt(p) : -1;
       if (now !== near) {
         since = Date.now();
@@ -583,28 +698,41 @@ footer a:hover { color:var(--ink); text-decoration:none; }
       bar.removeEventListener('pointermove', move);
       bar.removeEventListener('pointerup', up);
       bar.removeEventListener('pointercancel', up);
+      window.removeEventListener('keydown', keys);
+      window.removeEventListener('keyup', keys);
       clearTimeout(timer);
       mac.classList.remove('dragging');
       hideZones();
       if (!moved || !session) return;
-      if (hot >= 0 && !ev.altKey) place(w, hot);
-      else { var i = slotOf(w); if (i >= 0) session.slots[i].win = null; }
+      if (hot >= 0 && !ev.altKey && (ev.metaKey || cmd)) addTab(w, hot);
+      else if (hot >= 0 && !ev.altKey) place(w, hot);
+      else { unslot(w); renderTabs(); }
     }
     bar.addEventListener('pointermove', move);
     bar.addEventListener('pointerup', up);
     bar.addEventListener('pointercancel', up);
   }
+  // A window from another zone trades places with the shown tab. A new window takes the shown tab's place.
   function place(w, i) {
     var s = session.slots, from = slotOf(w), occ = s[i].win, kind = 'move';
-    if (from >= 0 && from !== i) {
-      s[from].win = occ;
-      if (occ) { setFrame(occ, s[from].f, true); kind = 'swap'; }
-    } else if (from < 0 && occ) {
+    if (from === i) { showTab(w); return; }
+    if (from >= 0) {
+      if (occ) {
+        s[from].tabs[s[from].tabs.indexOf(w)] = occ;
+        if (s[from].win === w) s[from].win = occ;
+        setFrame(occ, s[from].f, true);
+        kind = 'swap';
+      } else {
+        unslot(w);
+      }
+    } else if (occ) {
       kind = 'replace';
     }
+    if (occ) s[i].tabs[s[i].tabs.indexOf(occ)] = w; else s[i].tabs.push(w);
     s[i].win = w;
     setFrame(w, s[i].f, true);
     front(w);
+    renderTabs();
     advance(kind);
   }
 
@@ -646,10 +774,12 @@ footer a:hover { color:var(--ink); text-decoration:none; }
         var moved = follow(old, f, others);
         Object.keys(moved).forEach(function (k) {
           session.slots[k].f = moved[k];
-          if (session.slots[k].win) setFrame(session.slots[k].win, moved[k]);
+          session.slots[k].tabs.forEach(function (t) { setFrame(t, moved[k]); });
           linked = true;
         });
         session.slots[i].f = f;
+        session.slots[i].tabs.forEach(function (t) { if (t !== w) setFrame(t, f); });
+        renderTabs();
       }
       setFrame(w, f);
     }
@@ -665,13 +795,14 @@ footer a:hover { color:var(--ink); text-decoration:none; }
   }
 
   // Guided hints
-  var STEPS = ['start', 'panel', 'apply', 'swap', 'replace', 'resize'];
+  var STEPS = ['start', 'panel', 'apply', 'swap', 'replace', 'tab', 'resize'];
   var TEXT = {
     start: 'Click the Tessera icon in the menu bar ↗',
     panel: 'Hover a mode to preview it. Click it to tile.',
     apply: 'Drag a window by its title bar onto the center of another zone to swap.',
     swap: 'Open an app from the Dock, then drag it onto the center of a zone.',
-    replace: 'Drag the edge between two windows. Both resize.',
+    replace: 'Now hold ⌘ while you drop a window on a zone’s center. It becomes a tab.',
+    tab: 'Switch tabs with the marks above the zone or ⌃⌥`. Then drag the edge between two windows.',
     resize: 'That is Tessera. Install it with the command above.'
   };
   var step = -1;
@@ -716,6 +847,7 @@ footer a:hover { color:var(--ink); text-decoration:none; }
     if (e.key === 'Escape') setPanel(false);
     var m = e.ctrlKey && e.altKey && /^Digit([1-9])$/.exec(e.code);
     if (m && MODES[m[1] - 1]) { e.preventDefault(); apply(m[1] - 1); }
+    if (e.ctrlKey && e.altKey && e.code === 'Backquote') { e.preventDefault(); cycleTab(e.shiftKey ? -1 : 1); }
   });
   gapInput.addEventListener('input', function () {
     gap = +gapInput.value;

@@ -11,6 +11,12 @@ final class Updater: ObservableObject {
     @Published private(set) var available: Release?
     @Published private(set) var installing = false
     @Published private(set) var failure: String?
+    /// The result of a check that you start from the panel.
+    @Published private(set) var manual: ManualCheck = .idle
+
+    enum ManualCheck: Equatable {
+        case idle, checking, upToDate, failed
+    }
     @Published var enabled: Bool {
         didSet {
             UserDefaults.standard.set(enabled, forKey: Keys.enabled)
@@ -48,17 +54,36 @@ final class Updater: ObservableObject {
 
     /// Asks GitHub for the latest release. Sends no data about the user.
     func check() {
-        guard enabled, let current, !installing else { return }
+        guard enabled else { return }
+        fetch(manual: false)
+    }
+
+    /// Checks now, from the button next to the version. Works also when the daily check is off.
+    func checkNow() {
+        guard manual != .checking else { return }
+        fetch(manual: true)
+    }
+
+    private func fetch(manual isManual: Bool) {
+        guard let current, !installing else { return }
         UserDefaults.standard.set(Date(), forKey: Keys.lastCheck)
+        if isManual { manual = .checking }
         var request = URLRequest(url: Self.latest)
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue("Tessera/\(current)", forHTTPHeaderField: "User-Agent")
         session.dataTask(with: request) { [weak self] data, response, _ in
-            guard let data, (response as? HTTPURLResponse)?.statusCode == 200,
-                  let release = Release.parse(data) else { return }
+            let release = data.flatMap { (response as? HTTPURLResponse)?.statusCode == 200 ? Release.parse($0) : nil }
             DispatchQueue.main.async {
-                guard let self, self.enabled else { return }
-                self.available = release.version > current ? release : nil
+                guard let self else { return }
+                if let release, isManual || self.enabled {
+                    self.available = release.version > current ? release : nil
+                }
+                guard isManual else { return }
+                self.manual = release == nil ? .failed : (self.available == nil ? .upToDate : .idle)
+                // Show the result for a few seconds, then return to the button.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
+                    if self?.manual != .checking { self?.manual = .idle }
+                }
             }
         }.resume()
     }
