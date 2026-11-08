@@ -69,7 +69,7 @@ struct MenuPanel: View {
             if updater.isRelease {
                 Toggle("Check for updates", isOn: $updater.enabled)
             }
-            Text("Hover a mode to preview it. Drag a window onto a zone to swap or replace.")
+            Text("Hover a mode to preview it. Drag a window onto a zone to swap or replace. Hold ⌘ as you drop to add it as a tab.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

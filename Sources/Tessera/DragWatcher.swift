@@ -1,13 +1,33 @@
 import AppKit
 import ApplicationServices
 
+/// What a drop does, chosen by the keys held at the drop.
+enum DropMode {
+    /// No key: swap, replace or move.
+    case place
+    /// Command: add the window as a tab.
+    case tab
+    /// Option: free the window from the layout.
+    case free
+
+    init(_ flags: NSEvent.ModifierFlags) {
+        if flags.contains(.option) {
+            self = .free
+        } else if flags.contains(.command) {
+            self = .tab
+        } else {
+            self = .place
+        }
+    }
+}
+
 /// Detects when you drag a window by its title bar, and where you drop it.
 final class DragWatcher {
     /// Called once when a window starts to move. Return false to ignore this drag.
     var onStart: (AXUIElement) -> Bool = { _ in false }
-    /// Called while the window moves. `free` is true while Option is held.
-    var onMove: (AXUIElement, CGPoint, Bool) -> Void = { _, _, _ in }
-    var onDrop: (AXUIElement, CGPoint, Bool) -> Void = { _, _, _ in }
+    /// Called while the window moves.
+    var onMove: (AXUIElement, CGPoint, DropMode) -> Void = { _, _, _ in }
+    var onDrop: (AXUIElement, CGPoint, DropMode) -> Void = { _, _, _ in }
 
     private var monitor: Any?
     private var window: AXUIElement?
@@ -26,7 +46,7 @@ final class DragWatcher {
 
     private func handle(_ event: NSEvent) {
         let point = Screens.mouse
-        let free = event.modifierFlags.contains(.option)
+        let mode = DropMode(event.modifierFlags)
         switch event.type {
         case .leftMouseDown:
             dragging = false
@@ -35,7 +55,7 @@ final class DragWatcher {
         case .leftMouseDragged:
             guard let window else { return }
             if dragging {
-                onMove(window, point, free)
+                onMove(window, point, mode)
                 return
             }
             guard let start = startFrame, let frame = WindowArranger.frame(of: window) else { return }
@@ -47,12 +67,12 @@ final class DragWatcher {
             guard hypot(frame.minX - start.minX, frame.minY - start.minY) > 4 else { return }
             if onStart(window) {
                 dragging = true
-                onMove(window, point, free)
+                onMove(window, point, mode)
             } else {
                 self.window = nil
             }
         case .leftMouseUp:
-            if dragging, let window { onDrop(window, point, free) }
+            if dragging, let window { onDrop(window, point, mode) }
             dragging = false
             window = nil
         default:
