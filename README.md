@@ -77,13 +77,14 @@ The workflow needs two repository secrets: `TESSERA_SIGNING_P12` (the base64 `.p
 
 ### Swap, replace and free windows
 
-When a mode is applied, drag any window by its title bar. The zones appear on screen, and the zone under the pointer shows what the drop will do.
+When a mode is applied, drag any window by its title bar. The zones appear on screen. Each zone has a drop target in its center, about 60% of the zone. Rest the pointer on a target for a moment: it lights up and shows what the drop will do. A quick drag across the screen never triggers a target.
 
 - **Swap:** drag a tiled window onto another zone. The two windows change places and keep the zone sizes.
 - **Replace:** drag a new window, for example Spotify, onto a zone. It takes that zone. The old window stays where it is, behind.
 - **Move here:** drag a window onto an empty zone to fill it.
 - **Add as tab:** hold Command while you drop. The window joins that zone as a tab and shows on top. The window that was there waits behind it, at the same size.
-- **Free:** hold Option while you drop, or drop off the tiled screen. The window leaves the layout.
+- **Float:** drop anywhere outside the targets, for example near a zone's edge. The screen shows "Float here". The window stays where you drop it, above your tiles, and a tiled window leaves the layout. This is useful for a quick Finder window. Hide it again with ⌘H.
+- Holding Option while you drop also floats the window.
 
 ### Tabs
 
@@ -93,7 +94,7 @@ A zone can hold more than one window. The windows share the zone's size and plac
 - **Tab bar:** rest the pointer on the marks. A bar opens with each window's app icon and title. Click a tab to show it, or use ‹ and ›.
 - **Keyboard:** press ⌃⌥` for the next tab and ⌃⌥⇧` for the previous tab. Tessera uses the zone of the active window, or else the zone under the pointer.
 - **Close:** rest the pointer on a tab and click ×. The app closes the window the usual way, so it asks you to save unsaved work first.
-- **Move:** drag a tab out of the bar onto another zone. It joins that zone as a tab.
+- **Move:** drag a tab out of the bar onto another zone's center target. It joins that zone as a tab.
 - **Stays in sync:** a click, ⌘-Tab or the Dock can bring a tab forward, and the bar follows. When you close or minimize the shown tab, the next window in that zone shows. Resizing a zone resizes all of its tabs.
 
 - Use the **Gap** slider to set the space between windows.

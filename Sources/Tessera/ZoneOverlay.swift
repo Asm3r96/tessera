@@ -1,32 +1,50 @@
 import AppKit
 import SwiftUI
+import TesseraCore
 
 struct ZoneItem: Identifiable {
     let id: Int
     /// Top-left screen coordinates.
-    let frame: CGRect
+    var frame: CGRect
     let icon: NSImage?
     let title: String
     var detail: String
     var highlighted = false
+    /// The pointer is on the drop target but has not rested long enough.
+    var hovered = false
+    /// The drop target in top-left screen coordinates. Nil for previews, which have no targets.
+    var target: CGRect?
+
+    init(id: Int, frame: CGRect, icon: NSImage?, title: String, detail: String) {
+        self.id = id
+        self.frame = frame
+        self.icon = icon
+        self.title = title
+        self.detail = detail
+        target = DropTarget.rect(in: frame)
+    }
 }
 
 private final class OverlayState: ObservableObject {
     @Published var items: [ZoneItem] = []
+    @Published var banner: String?
 }
 
 /// Click-through panels that draw zones above the windows, one panel per screen.
 final class ZoneOverlay {
     private var panels: [CGDirectDisplayID: (panel: NSPanel, state: OverlayState)] = [:]
 
-    func show(screenID: CGDirectDisplayID, area: CGRect, items: [ZoneItem]) {
+    func show(screenID: CGDirectDisplayID, area: CGRect, items: [ZoneItem], banner: String? = nil) {
         guard let screen = Screens.screen(id: screenID) else { return }
         let entry = panels[screenID] ?? makePanel()
         panels[screenID] = entry
         entry.state.items = items.map { item in
-            ZoneItem(id: item.id, frame: item.frame.offsetBy(dx: -area.minX, dy: -area.minY), icon: item.icon,
-                     title: item.title, detail: item.detail, highlighted: item.highlighted)
+            var local = item
+            local.frame = item.frame.offsetBy(dx: -area.minX, dy: -area.minY)
+            local.target = item.target?.offsetBy(dx: -item.frame.minX, dy: -item.frame.minY)
+            return local
         }
+        entry.state.banner = banner
         if entry.panel.frame != screen.visibleFrame {
             entry.panel.setFrame(screen.visibleFrame, display: true)
         }
@@ -61,9 +79,21 @@ private struct OverlayView: View {
                     .frame(width: item.frame.width, height: item.frame.height)
                     .offset(x: item.frame.minX, y: item.frame.minY)
             }
+            if let banner = state.banner {
+                Label(banner, systemImage: "macwindow.on.rectangle")
+                    .font(.callout.weight(.medium))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 9)
+                    .background(.regularMaterial, in: Capsule())
+                    .shadow(color: .black.opacity(0.15), radius: 8, y: 2)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 24)
+                    .transition(.opacity)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .animation(.easeOut(duration: 0.12), value: state.items.map(\.highlighted))
+        .animation(.easeOut(duration: 0.12), value: state.items.map { [$0.highlighted, $0.hovered] })
+        .animation(.easeOut(duration: 0.12), value: state.banner)
     }
 }
 
@@ -71,10 +101,26 @@ private struct ZoneTile: View {
     let item: ZoneItem
 
     var body: some View {
+        if let target = item.target {
+            // Drag: a faint zone outline, and the drop target in its center.
+            ZStack(alignment: .topLeading) {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(Color.accentColor.opacity(0.3), style: StrokeStyle(lineWidth: 1.5, dash: [6, 5]))
+                box
+                    .frame(width: target.width, height: target.height)
+                    .offset(x: target.minX, y: target.minY)
+            }
+        } else {
+            box
+        }
+    }
+
+    private var box: some View {
         let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
-        shape
-            .fill(Color.accentColor.opacity(item.highlighted ? 0.3 : 0.1))
-            .overlay(shape.strokeBorder(Color.accentColor.opacity(item.highlighted ? 0.95 : 0.45),
+        let strength = item.highlighted ? 1.0 : (item.hovered ? 0.6 : 0.0)
+        return shape
+            .fill(Color.accentColor.opacity(0.1 + 0.2 * strength))
+            .overlay(shape.strokeBorder(Color.accentColor.opacity(0.45 + 0.5 * strength),
                                         lineWidth: item.highlighted ? 3 : 1.5))
             .overlay {
                 VStack(spacing: 8) {
