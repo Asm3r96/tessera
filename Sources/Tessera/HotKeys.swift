@@ -1,8 +1,12 @@
 import Carbon
 
-/// Global shortcuts Control-Option-1 to 9. Each one applies the mode at that position.
+/// Global shortcuts. Control-Option-1 to 9 apply the mode at that position.
+/// Control-Option-` shows the next tab, and Control-Option-Shift-` the previous tab.
 final class HotKeys {
     var onPress: ((Int) -> Void)?
+    var onTab: ((Int) -> Void)?
+    private static let nextTab: UInt32 = 100
+    private static let previousTab: UInt32 = 101
     private var refs: [EventHotKeyRef?] = []
 
     func register() {
@@ -13,7 +17,11 @@ final class HotKeys {
             GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
                               nil, MemoryLayout<EventHotKeyID>.size, nil, &id)
             let hotKeys = Unmanaged<HotKeys>.fromOpaque(userData).takeUnretainedValue()
-            hotKeys.onPress?(Int(id.id))
+            switch id.id {
+            case HotKeys.nextTab: hotKeys.onTab?(1)
+            case HotKeys.previousTab: hotKeys.onTab?(-1)
+            default: hotKeys.onPress?(Int(id.id))
+            }
             return noErr
         }, 1, &spec, Unmanaged.passUnretained(self).toOpaque(), nil)
 
@@ -23,6 +31,12 @@ final class HotKeys {
             var ref: EventHotKeyRef?
             let id = EventHotKeyID(signature: OSType(0x5445_5353), id: UInt32(index))
             RegisterEventHotKey(UInt32(key), UInt32(controlKey | optionKey), id, GetApplicationEventTarget(), 0, &ref)
+            refs.append(ref)
+        }
+        for (id, modifiers) in [(Self.nextTab, controlKey | optionKey), (Self.previousTab, controlKey | optionKey | shiftKey)] {
+            var ref: EventHotKeyRef?
+            RegisterEventHotKey(UInt32(kVK_ANSI_Grave), UInt32(modifiers), EventHotKeyID(signature: OSType(0x5445_5353), id: id),
+                                GetApplicationEventTarget(), 0, &ref)
             refs.append(ref)
         }
     }

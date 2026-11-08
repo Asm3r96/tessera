@@ -72,7 +72,7 @@ The workflow needs two repository secrets: `TESSERA_SIGNING_P12` (the base64 `.p
 - Click the menu bar icon, then click a mode. Tessera arranges the windows on the screen under the mouse.
 - Press ⌃⌥1 to ⌃⌥9 to apply the mode at that position in the list.
 - Hover a mode card to preview it. The screen shows each zone with the app and window that will go there.
-- The frontmost window goes into the largest zone. The next windows fill the other zones. Extra windows stay where they are. When you switch modes on the same screen, the tiled windows stay in their order.
+- The frontmost window goes into the largest zone. The next windows fill the other zones. When there are more windows than zones, the extra windows join the zones as tabs. When you switch modes on the same screen, the tiled windows stay in their order.
 - Drag the edge between two arranged windows. Every window on that edge resizes with it.
 
 ### Swap, replace and free windows
@@ -82,7 +82,20 @@ When a mode is applied, drag any window by its title bar. The zones appear on sc
 - **Swap:** drag a tiled window onto another zone. The two windows change places and keep the zone sizes.
 - **Replace:** drag a new window, for example Spotify, onto a zone. It takes that zone. The old window stays where it is, behind.
 - **Move here:** drag a window onto an empty zone to fill it.
+- **Add as tab:** hold Command while you drop. The window joins that zone as a tab and shows on top. The window that was there waits behind it, at the same size.
 - **Free:** hold Option while you drop, or drop off the tiled screen. The window leaves the layout.
+
+### Tabs
+
+A zone can hold more than one window. The windows share the zone's size and place, and one of them shows.
+
+- **Marks:** a zone with tabs shows small marks on its top edge, one per window. Click a mark to show that window.
+- **Tab bar:** rest the pointer on the marks. A bar opens with each window's app icon and title. Click a tab to show it, or use ‹ and ›.
+- **Keyboard:** press ⌃⌥` for the next tab and ⌃⌥⇧` for the previous tab. Tessera uses the zone of the active window, or else the zone under the pointer.
+- **Close:** rest the pointer on a tab and click ×. The app closes the window the usual way, so it asks you to save unsaved work first.
+- **Move:** drag a tab out of the bar onto another zone. It joins that zone as a tab.
+- **Stays in sync:** a click, ⌘-Tab or the Dock can bring a tab forward, and the bar follows. When you close or minimize the shown tab, the next window in that zone shows. Resizing a zone resizes all of its tabs.
+
 - Use the **Gap** slider to set the space between windows.
 - Turn on **Open at login** to start Tessera when you log in.
 - Turn off **Check for updates** to stop the daily update check. This switch appears only in release builds.
@@ -112,16 +125,17 @@ Modes are saved in the app's user defaults (`com.moe.tessera`). They do not sync
 
 | Path | Contents |
 | --- | --- |
-| `Sources/TesseraCore/` | Layout math, linked resize math, version and release parsing, without AppKit. |
+| `Sources/TesseraCore/` | Layout math, linked resize math, tab order, version and release parsing, without AppKit. |
 | `Sources/TesseraChecks/main.swift` | Logic checks for TesseraCore. |
 | `Sources/Tessera/TesseraApp.swift` | App entry point and menu bar item. |
 | `Sources/Tessera/AppModel.swift` | Saved modes, settings, Accessibility check, shortcuts. |
 | `Sources/Tessera/WindowArranger.swift` | Finds windows and moves them through the Accessibility API. |
 | `Sources/Tessera/Updater.swift` | Daily update check, download, signature check and app swap. |
-| `Sources/Tessera/TileSession.swift` | Zones of the applied mode, swap and replace, linked resizing. |
+| `Sources/Tessera/TileSession.swift` | Zones of the applied mode, tabs, swap and replace, linked resizing. |
+| `Sources/Tessera/TabBar.swift` | Tab marks and the tab bar above zones with tabs. |
 | `Sources/Tessera/DragWatcher.swift` | Detects window drags by the title bar and the drop point. |
 | `Sources/Tessera/ZoneOverlay.swift` | Click-through zone overlay for previews and drags. |
-| `Sources/Tessera/HotKeys.swift` | Global shortcuts ⌃⌥1 to ⌃⌥9. |
+| `Sources/Tessera/HotKeys.swift` | Global shortcuts ⌃⌥1 to ⌃⌥9, ⌃⌥` and ⌃⌥⇧`. |
 | `Sources/Tessera/MenuPanel.swift` | Menu bar panel and mode editor UI. |
 | `Resources/Info.plist` | Bundle settings. `LSUIElement` hides the Dock icon. |
 | `Resources/AppIcon.icns` | App icon. Rebuild it with `swift scripts/make-icon.swift`. |

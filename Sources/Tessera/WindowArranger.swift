@@ -36,17 +36,19 @@ enum Screens {
     }
 }
 
-/// Which window goes into which zone. Frames and windows are in fill order: index 0 is the largest zone.
+/// Which windows go into which zone. Frames and stacks are in fill order: index 0 is the largest zone.
 struct Placement {
     let screenID: CGDirectDisplayID
     /// The screen's visible frame.
     let area: CGRect
     let frames: [CGRect]
-    let windows: [AXUIElement?]
+    /// The tabs of each zone. The first tab shows. An empty stack is an empty zone.
+    let stacks: [[AXUIElement]]
 }
 
 enum WindowArranger {
     /// Plans a mode on a screen. Windows in `keep` come first, in their order. The other windows follow, frontmost first.
+    /// When there are more windows than zones, the extra windows join the zones as tabs.
     static func plan(_ mode: Mode, on screen: NSScreen, gap: Double, keep: [AXUIElement]) -> Placement {
         let visible = Screens.topLeft(screen.visibleFrame)
         let area = visible.insetBy(dx: gap / 2, dy: gap / 2)
@@ -62,14 +64,56 @@ enum WindowArranger {
         let kept = keep.filter { window in onScreen.contains { CFEqual($0, window) } }
         let rest = onScreen.filter { window in !kept.contains { CFEqual($0, window) } }
         let ordered = kept + rest
-        let windows: [AXUIElement?] = frames.indices.map { $0 < ordered.count ? ordered[$0] : nil }
-        return Placement(screenID: screen.displayID, area: visible, frames: frames, windows: windows)
+        let stacks = Stacking.distribute(ordered.count, zones: frames.count).map { $0.map { ordered[$0] } }
+        return Placement(screenID: screen.displayID, area: visible, frames: frames, stacks: stacks)
     }
 
     static func apply(_ placement: Placement) {
-        for (window, frame) in zip(placement.windows, placement.frames) {
-            if let window { setFrame(window, frame) }
+        for (stack, frame) in zip(placement.stacks, placement.frames) {
+            for window in stack { setFrame(window, frame) }
         }
+    }
+
+    static func windowID(of window: AXUIElement) -> CGWindowID? {
+        var id: CGWindowID = 0
+        return _AXUIElementGetWindow(window, &id) == .success ? id : nil
+    }
+
+    /// The window that is highest on screen.
+    static func frontmost(of windows: [AXUIElement]) -> AXUIElement? {
+        let ids = windows.map(windowID(of:))
+        guard let info = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
+            as? [[String: Any]] else { return nil }
+        for entry in info {
+            guard let number = entry[kCGWindowNumber as String] as? CGWindowID,
+                  let index = ids.firstIndex(of: number) else { continue }
+            return windows[index]
+        }
+        return nil
+    }
+
+    static func focusedWindow(of pid: pid_t) -> AXUIElement? {
+        let app = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(app, 0.5)
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(app, kAXFocusedWindowAttribute as CFString, &value) == .success,
+              let value, CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
+        return (value as! AXUIElement)
+    }
+
+    /// Brings a window to the front and makes its app active.
+    static func focus(_ window: AXUIElement) {
+        AXUIElementPerformAction(window, kAXRaiseAction as CFString)
+        AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
+        if let pid = pid(of: window) { NSRunningApplication(processIdentifier: pid)?.activate() }
+    }
+
+    /// Presses the window's close button, so the app can ask to save first. Returns false without a close button.
+    static func close(_ window: AXUIElement) -> Bool {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(window, kAXCloseButtonAttribute as CFString, &value) == .success,
+              let value, CFGetTypeID(value) == AXUIElementGetTypeID() else { return false }
+        return AXUIElementPerformAction(value as! AXUIElement, kAXPressAction as CFString) == .success
     }
 
     /// The standard window at a point, for example the window whose title bar you press.
@@ -157,8 +201,7 @@ enum WindowArranger {
               let windows = value as? [AXUIElement] else { return [:] }
         var result: [CGWindowID: AXUIElement] = [:]
         for window in windows where isStandard(window) {
-            var id: CGWindowID = 0
-            if _AXUIElementGetWindow(window, &id) == .success { result[id] = window }
+            if let id = windowID(of: window) { result[id] = window }
         }
         return result
     }
