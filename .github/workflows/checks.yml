@@ -14,3 +14,5 @@ jobs:
         run: swift build
       - name: Logic checks
         run: swift run TesseraChecks
+      - name: Focus checks
+        run: bash scripts/check-focus.sh

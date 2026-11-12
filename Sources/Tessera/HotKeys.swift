@@ -5,8 +5,10 @@ import Carbon
 final class HotKeys {
     var onPress: ((Int) -> Void)?
     var onTab: ((Int) -> Void)?
+    var onFocus: (() -> Void)?
     private static let nextTab: UInt32 = 100
     private static let previousTab: UInt32 = 101
+    private static let focus: UInt32 = 102
     private var refs: [EventHotKeyRef?] = []
 
     func register() {
@@ -20,6 +22,7 @@ final class HotKeys {
             switch id.id {
             case HotKeys.nextTab: hotKeys.onTab?(1)
             case HotKeys.previousTab: hotKeys.onTab?(-1)
+            case HotKeys.focus: hotKeys.onFocus?()
             default: hotKeys.onPress?(Int(id.id))
             }
             return noErr
@@ -33,6 +36,11 @@ final class HotKeys {
             RegisterEventHotKey(UInt32(key), UInt32(controlKey | optionKey), id, GetApplicationEventTarget(), 0, &ref)
             refs.append(ref)
         }
+        var focusRef: EventHotKeyRef?
+        RegisterEventHotKey(UInt32(kVK_ANSI_Z), UInt32(controlKey | optionKey),
+                            EventHotKeyID(signature: OSType(0x5445_5353), id: Self.focus),
+                            GetApplicationEventTarget(), 0, &focusRef)
+        refs.append(focusRef)
         for (id, modifiers) in [(Self.nextTab, controlKey | optionKey), (Self.previousTab, controlKey | optionKey | shiftKey)] {
             var ref: EventHotKeyRef?
             RegisterEventHotKey(UInt32(kVK_ANSI_Grave), UInt32(modifiers), EventHotKeyID(signature: OSType(0x5445_5353), id: id),
