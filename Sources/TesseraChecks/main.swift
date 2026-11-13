@@ -20,6 +20,16 @@ func near(_ a: CGRect, _ b: CGRect) -> Bool {
         && abs(a.width - b.width) < 0.0001 && abs(a.height - b.height) < 0.0001
 }
 
+// Discrete page swipes step once, without treating scrolling or vertical swipes as tabs.
+check(TabSwipe.offset(x: 1, y: 0) == 1, "left swipe selects the next tab")
+check(TabSwipe.offset(x: -1, y: 0) == -1, "right swipe selects the previous tab")
+check(TabSwipe.offset(x: 0, y: 0) == nil, "stationary gesture does not switch tabs")
+check(TabSwipe.offset(x: 0, y: 1) == nil, "vertical swipe does not switch tabs")
+check(TabSwipe.offset(x: 1, y: 1) == nil, "diagonal swipe does not switch tabs")
+check(TabSwipe.offset(x: -2, y: 1) == -1, "horizontal-dominant swipe selects one tab")
+check(TabSwipe.offset(x: .nan, y: 0) == nil, "invalid swipe does not switch tabs")
+check(TabSwipe.offset(x: .infinity, y: 0) == nil, "infinite swipe does not switch tabs")
+
 // Zones
 let halves = Mode(name: "Halves", columns: [Column(weight: 1, rows: 1), Column(weight: 1, rows: 1)])
 check(halves.zones.count == 2, "halves has two zones")

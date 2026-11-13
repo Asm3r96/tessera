@@ -25,6 +25,7 @@ final class AppModel: ObservableObject {
 
     private let hotKeys = HotKeys()
     private let drag = DragWatcher()
+    private let swipe = SwipeWatcher()
     private let overlay = ZoneOverlay()
     private let tabBars = TabBars()
     private var activationObserver: NSObjectProtocol?
@@ -54,6 +55,8 @@ final class AppModel: ObservableObject {
         hotKeys.onTab = { [weak self] offset in self?.cycleTab(by: offset) }
         hotKeys.onFocus = { [weak self] in self?.toggleFocus() }
         hotKeys.register()
+        swipe.onSwipe = { [weak self] offset, point in self?.cycleTab(at: point, by: offset) ?? false }
+        swipe.start()
         drag.onStart = { [weak self] window in self?.beginDrag(window) ?? false }
         drag.onMove = { [weak self] window, point, mode in self?.moveDrag(window, point, mode: mode) }
         drag.onDrop = { [weak self] window, point, mode in self?.drop(window, point, mode: mode) }
@@ -141,10 +144,17 @@ final class AppModel: ObservableObject {
             session.cycle(index, by: offset)
             return
         }
-        let point = Screens.mouse
-        guard let session = sessions.values.first(where: { $0.area.contains(point) }),
-              let index = session.zone(at: point) else { return }
+        _ = cycleTab(at: Screens.mouse, by: offset)
+    }
+
+    /// Gestures use only the zone under the pointer, not the active window.
+    private func cycleTab(at point: CGPoint, by offset: Int) -> Bool {
+        guard AXIsProcessTrusted(),
+              let session = sessions.values.first(where: { $0.area.contains(point) }),
+              let index = session.zone(at: point),
+              session.slots[index].tabs.items.count > 1 else { return false }
         session.cycle(index, by: offset)
+        return true
     }
 
     private func updateTabBars() {

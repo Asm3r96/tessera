@@ -103,6 +103,7 @@ A zone can hold more than one window. The windows share the zone's size and plac
 - **Marks:** a zone with tabs shows small marks on its top edge, one per window. Click a mark to show that window.
 - **Tab bar:** rest the pointer on the marks. A bar opens with each window's app icon and title. Click a tab to show it, or use ‹ and ›.
 - **Keyboard:** press ⌃⌥` for the next tab and ⌃⌥⇧` for the previous tab. Tessera uses the zone of the active window, or else the zone under the pointer.
+- **Trackpad:** put the pointer over a zone with tabs. Swipe left with three fingers for the next tab, or right for the previous tab. The active window can be in another zone. In System Settings › Trackpad › More Gestures, set **Swipe between pages** to **Swipe with three fingers**. Set **Swipe between full-screen applications** to four fingers or turn it off. If three-finger dragging is enabled under Accessibility › Pointer Control › Trackpad Options, turn it off or choose another dragging style. Two-finger scrolling stays unchanged. Other apps can still receive the page swipe.
 - **Close:** rest the pointer on a tab and click ×. The app closes the window the usual way, so it asks you to save unsaved work first.
 - **Move:** drag a tab out of the bar onto another zone's center target. It joins that zone as a tab.
 - **Stays in sync:** a click, ⌘-Tab or the Dock can bring a tab forward, and the bar follows. When you close or minimize the shown tab, the next window in that zone shows. Resizing a zone resizes all of its tabs.
@@ -144,6 +145,7 @@ Modes are saved in the app's user defaults (`com.moe.tessera`). They do not sync
 | `Sources/Tessera/Updater.swift` | Daily update check, download, signature check and app swap. |
 | `Sources/Tessera/TileSession.swift` | Zones of the applied mode, tabs, swap and replace, linked resizing. |
 | `Sources/Tessera/TabBar.swift` | Tab marks and the tab bar above zones with tabs. |
+| `Sources/Tessera/SwipeWatcher.swift` | Watches page swipes to switch tabs in the zone under the pointer. |
 | `Sources/Tessera/DragWatcher.swift` | Detects window drags by the title bar and the drop point. |
 | `Sources/Tessera/ZoneOverlay.swift` | Click-through zone overlay for previews and drags. |
 | `Sources/Tessera/HotKeys.swift` | Global shortcuts ⌃⌥1 to ⌃⌥9, ⌃⌥Z, ⌃⌥` and ⌃⌥⇧`. |
