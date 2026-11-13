@@ -48,6 +48,7 @@ To update a source build, run `git pull && ./build.sh install`.
 | `VERSION=0.2.0 ./build.sh release` | Builds `.build/app/Tessera.zip` for a release. |
 | `swift build` | Compiles only. Use it to check for compile errors. |
 | `swift run TesseraChecks` | Runs the logic checks for layouts and linked resizing. |
+| `bash scripts/check-focus.sh` | Checks focus and restore behavior without moving real windows. |
 
 ## Signing
 
@@ -74,6 +75,15 @@ The workflow needs two repository secrets: `TESSERA_SIGNING_P12` (the base64 `.p
 - Hover a mode card to preview it. The screen shows each zone with the app and window that will go there.
 - The frontmost window goes into the largest zone. The next windows fill the other zones. When there are more windows than zones, the extra windows join the zones as tabs. When you switch modes on the same screen, the tiled windows stay in their order.
 - Drag the edge between two arranged windows. Every window on that edge resizes with it.
+
+### Focus a window
+
+Press ⌃⌥Z to expand the active tiled window to the screen's usable area. Press it again to restore its zone.
+This keeps the menu bar and Dock available and does not enter macOS full screen.
+
+Other windows and waiting tabs keep their zone sizes. Switching to another tiled window ends focus.
+Dragging the focused window ends focus and uses the usual drop rules. Applying a mode also ends focus.
+The shortcut does nothing for windows outside the layout.
 
 ### Swap, replace and free windows
 
@@ -136,7 +146,7 @@ Modes are saved in the app's user defaults (`com.moe.tessera`). They do not sync
 | `Sources/Tessera/TabBar.swift` | Tab marks and the tab bar above zones with tabs. |
 | `Sources/Tessera/DragWatcher.swift` | Detects window drags by the title bar and the drop point. |
 | `Sources/Tessera/ZoneOverlay.swift` | Click-through zone overlay for previews and drags. |
-| `Sources/Tessera/HotKeys.swift` | Global shortcuts ⌃⌥1 to ⌃⌥9, ⌃⌥` and ⌃⌥⇧`. |
+| `Sources/Tessera/HotKeys.swift` | Global shortcuts ⌃⌥1 to ⌃⌥9, ⌃⌥Z, ⌃⌥` and ⌃⌥⇧`. |
 | `Sources/Tessera/MenuPanel.swift` | Menu bar panel and mode editor UI. |
 | `Resources/Info.plist` | Bundle settings. `LSUIElement` hides the Dock icon. |
 | `Resources/AppIcon.icns` | App icon. Rebuild it with `swift scripts/make-icon.swift`. |

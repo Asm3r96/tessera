@@ -52,6 +52,7 @@ final class AppModel: ObservableObject {
     func start() {
         hotKeys.onPress = { [weak self] index in self?.apply(at: index) }
         hotKeys.onTab = { [weak self] offset in self?.cycleTab(by: offset) }
+        hotKeys.onFocus = { [weak self] in self?.toggleFocus() }
         hotKeys.register()
         drag.onStart = { [weak self] window in self?.beginDrag(window) ?? false }
         drag.onMove = { [weak self] window, point, mode in self?.moveDrag(window, point, mode: mode) }
@@ -116,6 +117,15 @@ final class AppModel: ObservableObject {
         updateTabBars()
     }
 
+    private func toggleFocus() {
+        guard AXIsProcessTrusted() else { requestAccess(); return }
+        guard let app = NSWorkspace.shared.frontmostApplication,
+              let window = WindowArranger.focusedWindow(of: app.processIdentifier),
+              let session = session(of: window) else { return }
+        hovered = nil
+        session.toggleFocus(window)
+    }
+
     // MARK: Tabs
 
     private func session(of window: AXUIElement) -> TileSession? {
@@ -139,7 +149,7 @@ final class AppModel: ObservableObject {
 
     private func updateTabBars() {
         var groups: [TabGroup] = []
-        for (id, session) in sessions {
+        for (id, session) in sessions where session.focusedWindow == nil {
             for (index, slot) in session.slots.enumerated() where slot.tabs.items.count > 1 {
                 let chips = slot.tabs.items.enumerated().map { number, window in
                     let app = WindowArranger.pid(of: window).flatMap { NSRunningApplication(processIdentifier: $0) }

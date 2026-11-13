@@ -16,6 +16,7 @@ final class TileSession {
     let screenID: CGDirectDisplayID
     let area: CGRect
     private(set) var slots: [Slot]
+    private(set) var focusedWindow: AXUIElement?
     /// Called after tabs, the shown tab, or a zone frame change.
     var onChange: () -> Void = {}
     private let gap: Double
@@ -49,6 +50,27 @@ final class TileSession {
         slots.firstIndex { $0.tabs.contains(window) }
     }
 
+    /// Expands a tiled window without changing its zone or its waiting tabs.
+    func toggleFocus(_ window: AXUIElement) {
+        guard let index = index(of: window) else { return }
+        let wasFocused = focusedWindow == window
+        restoreFocus()
+        guard !wasFocused else { return }
+        slots[index].tabs.show(window)
+        focusedWindow = window
+        slots[index].quietUntil = Date().addingTimeInterval(0.4)
+        WindowArranger.setFrame(window, area)
+        WindowArranger.focus(window)
+        onChange()
+    }
+
+    func restoreFocus() {
+        guard let window = focusedWindow else { return }
+        focusedWindow = nil
+        if let index = index(of: window) { snap(index) }
+        onChange()
+    }
+
     /// The zone under a point, or the nearest zone when the point is in a gap.
     func zone(at point: CGPoint) -> Int? {
         guard area.contains(point) else { return nil }
@@ -63,6 +85,7 @@ final class TileSession {
     /// Puts a window into a zone. A window from another zone swaps places with the shown tab there.
     /// A new window replaces the shown tab, which stays where it is, behind.
     func place(_ window: AXUIElement, at index: Int) {
+        restoreFocus()
         let from = self.index(of: window)
         guard from != index else {
             slots[index].tabs.show(window)
@@ -90,6 +113,7 @@ final class TileSession {
 
     /// Adds a window as a tab in a zone. It shows on top; the tab that was there waits behind it.
     func addTab(_ window: AXUIElement, at index: Int) {
+        restoreFocus()
         if let from = self.index(of: window), from != index {
             slots[from].tabs.remove(window)
             revealFront(from)
@@ -103,6 +127,7 @@ final class TileSession {
 
     func remove(_ window: AXUIElement) {
         guard let index = index(of: window) else { return }
+        if focusedWindow == window { focusedWindow = nil }
         unobserve(window)
         let wasShown = slots[index].window == window
         slots[index].tabs.remove(window)
@@ -113,6 +138,7 @@ final class TileSession {
     /// Shows a tab and brings it to the front.
     func show(_ window: AXUIElement) {
         guard let index = index(of: window) else { return }
+        restoreFocus()
         slots[index].tabs.show(window)
         snap(index)
         WindowArranger.focus(window)
@@ -128,7 +154,9 @@ final class TileSession {
 
     /// Marks a tab as shown after you bring it forward with a click, Command-Tab or the Dock.
     func noteFocus(_ window: AXUIElement) {
-        guard let index = index(of: window), slots[index].window != window else { return }
+        guard let index = index(of: window) else { return }
+        if let focusedWindow, focusedWindow != window { restoreFocus() }
+        guard slots[index].window != window else { return }
         slots[index].tabs.show(window)
         onChange()
     }
@@ -143,7 +171,9 @@ final class TileSession {
     /// Moves every tab of a zone to the zone frame.
     private func snap(_ index: Int) {
         slots[index].quietUntil = Date().addingTimeInterval(0.4)
-        for window in slots[index].tabs.items { WindowArranger.setFrame(window, slots[index].frame) }
+        for window in slots[index].tabs.items {
+            WindowArranger.setFrame(window, window == focusedWindow ? area : slots[index].frame)
+        }
     }
 
     private func distance(_ point: CGPoint, _ rect: CGRect) -> Double {
@@ -196,7 +226,8 @@ final class TileSession {
             break
         }
         // Only the shown tab drives resizing. Waiting tabs follow it.
-        guard let index = index(of: element), slots[index].window == element else { return }
+        guard focusedWindow != element,
+              let index = index(of: element), slots[index].window == element else { return }
         // Ignore echoes of frames that Tessera set itself.
         guard Date() >= slots[index].quietUntil, let frame = WindowArranger.frame(of: element) else { return }
         let old = slots[index].frame
