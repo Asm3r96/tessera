@@ -42,15 +42,23 @@ let savedOrder = try JSONEncoder().encode(orderedModes)
 let loadedOrder = try JSONDecoder().decode([Mode].self, from: savedOrder)
 check(loadedOrder.map(\.id) == orderedModes.map(\.id), "layout order survives saving")
 
-// Discrete page swipes step once, without treating scrolling or vertical swipes as tabs.
-check(TabSwipe.offset(x: 1, y: 0) == 1, "left swipe selects the next tab")
-check(TabSwipe.offset(x: -1, y: 0) == -1, "right swipe selects the previous tab")
-check(TabSwipe.offset(x: 0, y: 0) == nil, "stationary gesture does not switch tabs")
-check(TabSwipe.offset(x: 0, y: 1) == nil, "vertical swipe does not switch tabs")
-check(TabSwipe.offset(x: 1, y: 1) == nil, "diagonal swipe does not switch tabs")
-check(TabSwipe.offset(x: -2, y: 1) == -1, "horizontal-dominant swipe selects one tab")
-check(TabSwipe.offset(x: .nan, y: 0) == nil, "invalid swipe does not switch tabs")
-check(TabSwipe.offset(x: .infinity, y: 0) == nil, "infinite swipe does not switch tabs")
+// Three-finger swipes step once per gesture, without treating vertical or two-finger moves as tabs.
+func fingers(_ x: Double, _ y: Double = 0.5, count: Int = 3) -> [CGPoint] {
+    (0..<count).map { CGPoint(x: x + Double($0) * 0.05, y: y) }
+}
+func swipe(_ frames: [[CGPoint]]) -> [Int] {
+    var tracker = TabSwipe()
+    return frames.compactMap { tracker.update($0) }
+}
+check(swipe([fingers(0.6), fingers(0.5), fingers(0.4)]) == [1], "left swipe selects the next tab")
+check(swipe([fingers(0.4), fingers(0.6)]) == [-1], "right swipe selects the previous tab")
+check(swipe([fingers(0.5), fingers(0.45)]) == [], "short move does not switch tabs")
+check(swipe([fingers(0.5, 0.2), fingers(0.5, 0.6)]) == [], "vertical swipe does not switch tabs")
+check(swipe([fingers(0.5, 0.2), fingers(0.35, 0.4)]) == [], "diagonal swipe does not switch tabs")
+check(swipe([fingers(0.6, count: 2), fingers(0.3, count: 2)]) == [], "two-finger move does not switch tabs")
+check(swipe([fingers(0.6, count: 4), fingers(0.3, count: 4)]) == [], "four-finger move does not switch tabs")
+check(swipe([fingers(0.8), fingers(0.6), fingers(0.4), fingers(0.2)]) == [1], "one gesture switches one tab")
+check(swipe([fingers(0.6), fingers(0.4), [], fingers(0.6), fingers(0.4)]) == [1, 1], "lifting the fingers starts a new gesture")
 
 // Zones
 let halves = Mode(name: "Halves", columns: [Column(weight: 1, rows: 1), Column(weight: 1, rows: 1)])
