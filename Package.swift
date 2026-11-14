@@ -5,7 +5,7 @@ let package = Package(
     name: "Tessera",
     platforms: [.macOS(.v14)],
     dependencies: [
-        .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "2.4.0"),
+        .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", exact: "1.4.0"),
     ],
     targets: [
         .target(name: "TesseraCore"),
