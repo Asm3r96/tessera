@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds Tessera.app (universal: Apple silicon and Intel) and signs it.
+# Builds Tessera.app and signs it. Releases are universal (Apple silicon and Intel); local builds use this Mac's architecture.
 # Usage: ./build.sh          build into .build/app/Tessera.app
 #        ./build.sh install  build, copy to ~/Applications and launch
 #        ./build.sh release  build and zip into .build/app/Tessera.zip (set VERSION, for example 0.2.0)
@@ -30,8 +30,11 @@ provision_identity() {
 }
 
 provision_identity
-swift build -c release --arch arm64 --arch x86_64 --product Tessera
-BIN="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
+# The Command Line Tools lack the Intel compatibility libraries that KeyboardShortcuts needs,
+# so only release builds (made on CI with Xcode) are universal.
+if [ "${1:-}" = release ]; then ARCHS=(--arch arm64 --arch x86_64); else ARCHS=(--arch "$(uname -m)"); fi
+swift build -c release "${ARCHS[@]}" --product Tessera
+BIN="$(swift build -c release "${ARCHS[@]}" --show-bin-path)"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"

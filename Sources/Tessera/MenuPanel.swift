@@ -38,19 +38,23 @@ struct MenuPanel: View {
                     dismiss()
                     model.showSettings()
                 } label: {
-                    Image(systemName: "gearshape")
+                    Image(systemName: "gearshape").frame(width: 26, height: 26).contentShape(Circle())
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
+                .glassCircle()
                 .help("Settings")
                 .accessibilityLabel("Settings")
                 Button {
                     editing = Mode(name: "New Mode", columns: [Column(weight: 1, rows: 1), Column(weight: 1, rows: 1)])
                 } label: {
-                    Image(systemName: "plus")
+                    Image(systemName: "plus").frame(width: 26, height: 26).contentShape(Circle())
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
+                .glassCircle()
                 .help("New mode")
+                .accessibilityLabel("New mode")
             }
+            .glassGroup(spacing: 8)
 
             if let release = updater.available { updateBanner(release) }
             if !model.hasAccess { accessBanner }
@@ -65,25 +69,26 @@ struct MenuPanel: View {
                              edit: { editing = mode })
                 }
             }
+            .glassGroup(spacing: 10)
 
-            Divider()
-
-            HStack {
-                Text("Gap")
-                Slider(value: $model.gap, in: 0...24, step: 2)
-                Text("\(Int(model.gap)) pt")
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-                    .frame(width: 40, alignment: .trailing)
+            VStack(spacing: 10) {
+                HStack {
+                    Text("Gap")
+                    Slider(value: $model.gap, in: 0...24, step: 2)
+                    Text("\(Int(model.gap)) pt")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .frame(width: 40, alignment: .trailing)
+                }
+                Divider()
+                settingRow("Open at login", isOn: $model.launchAtLogin)
+                if updater.isRelease {
+                    Divider()
+                    settingRow("Check for updates", isOn: $updater.enabled)
+                }
             }
-            Toggle("Open at login", isOn: $model.launchAtLogin)
-                .toggleStyle(.switch)
-                .controlSize(.small)
-            if updater.isRelease {
-                Toggle("Check for updates", isOn: $updater.enabled)
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-            }
+            .padding(12)
+            .glass(cornerRadius: 16)
             Text("Hover a mode to preview it. Drag a window onto a zone’s center to swap or replace. Hold ⌘ to add it as a tab. Drop elsewhere to float it.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -96,9 +101,18 @@ struct MenuPanel: View {
                 if updater.isRelease { updateCheckButton }
                 Spacer()
                 Button("Quit") { NSApp.terminate(nil) }
+                    .glassButton()
             }
         }
         .padding(16)
+    }
+
+    private func settingRow(_ title: String, isOn: Binding<Bool>) -> some View {
+        Toggle(isOn: isOn) {
+            Text(title).frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .toggleStyle(.switch)
+        .controlSize(.small)
     }
 
     static let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
@@ -141,7 +155,7 @@ struct MenuPanel: View {
                     ProgressView().controlSize(.small)
                 } else {
                     Button("Update") { updater.install() }
-                        .buttonStyle(.borderedProminent)
+                        .glassButton(prominent: true)
                         .controlSize(.small)
                 }
             }
@@ -149,8 +163,8 @@ struct MenuPanel: View {
                 Text(failure).font(.caption).foregroundStyle(.red)
             }
         }
-        .padding(10)
-        .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(12)
+        .glass(cornerRadius: 16)
     }
 
     private var accessBanner: some View {
@@ -162,9 +176,10 @@ struct MenuPanel: View {
             }
             Spacer()
             Button("Open") { model.openAccessibilitySettings() }
+                .glassButton()
         }
-        .padding(10)
-        .background(Color.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(12)
+        .glass(cornerRadius: 16)
     }
 }
 
@@ -189,18 +204,20 @@ struct ModeCard: View {
                 }
             }
             .padding(10)
-            .background(Color.primary.opacity(hovering ? 0.1 : 0.05),
-                        in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
+        .glass(cornerRadius: 16, interactive: true)
+        .scaleEffect(hovering ? 1.02 : 1)
+        .animation(.spring(duration: 0.25), value: hovering)
         .overlay(alignment: .topTrailing) {
             if hovering {
                 Button(action: edit) {
                     Image(systemName: "slider.horizontal.3")
-                        .padding(5)
-                        .background(.regularMaterial, in: Circle())
+                        .frame(width: 24, height: 24)
+                        .contentShape(Circle())
                 }
+                .glassCircle()
                 .buttonStyle(.plain)
                 .padding(6)
                 .help("Edit mode")
@@ -224,10 +241,10 @@ struct ModePreview: View {
                     let height = max(zone.height * geometry.size.height - 3, 0)
                     let x = zone.minX * geometry.size.width + 1.5
                     let y = zone.minY * geometry.size.height + 1.5
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(Color.accentColor.opacity(isMain ? 0.45 : 0.2))
-                        .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .strokeBorder(Color.accentColor.opacity(0.6), lineWidth: 1))
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color.accentColor.gradient.opacity(isMain ? 0.85 : 0.3))
+                        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .strokeBorder(Color.white.opacity(isMain ? 0.25 : 0.12), lineWidth: 0.5))
                         .frame(width: width, height: height)
                         .offset(x: x, y: y)
                 }
@@ -262,8 +279,8 @@ struct ModeEditor: View {
 
             ModePreview(mode: draft.mode)
                 .frame(height: 120)
-                .padding(8)
-                .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .padding(10)
+                .glass(cornerRadius: 16)
 
             ForEach($draft.mode.columns) { $column in
                 VStack(alignment: .leading, spacing: 4) {
@@ -301,9 +318,10 @@ struct ModeEditor: View {
                 }
                 Spacer()
                 Button("Cancel", action: onCancel)
+                    .glassButton()
                 Button("Save") { onSave(draft.mode) }
                     .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
+                    .glassButton(prominent: true)
             }
         }
         .padding(16)
