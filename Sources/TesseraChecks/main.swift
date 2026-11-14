@@ -20,6 +20,28 @@ func near(_ a: CGRect, _ b: CGRect) -> Bool {
         && abs(a.width - b.width) < 0.0001 && abs(a.height - b.height) < 0.0001
 }
 
+// Saved layout order
+let orderA = Mode(name: "A", columns: [Column(weight: 1, rows: 1)])
+let orderB = Mode(name: "B", columns: [Column(weight: 2, rows: 2)])
+let orderC = Mode(name: "C", columns: [Column(weight: 3, rows: 1)])
+var orderedModes = [orderA, orderB, orderC]
+ModeOrder.move(&orderedModes, from: 0, to: 2)
+check(orderedModes.map(\.id) == [orderB.id, orderC.id, orderA.id], "move a layout to the end")
+check(orderedModes[2].columns == orderA.columns, "reordering preserves layout contents")
+ModeOrder.move(&orderedModes, from: 2, to: 0)
+check(orderedModes.map(\.id) == [orderA.id, orderB.id, orderC.id], "move a layout to the start")
+ModeOrder.move(&orderedModes, from: 1, to: 1)
+check(orderedModes.map(\.id) == [orderA.id, orderB.id, orderC.id], "same-position move does nothing")
+ModeOrder.move(&orderedModes, from: -1, to: 0)
+ModeOrder.move(&orderedModes, from: 0, to: 3)
+check(orderedModes.map(\.id) == [orderA.id, orderB.id, orderC.id], "out-of-range moves do nothing")
+var emptyModes: [Mode] = []
+ModeOrder.move(&emptyModes, from: 0, to: 0)
+check(emptyModes.isEmpty, "empty order stays empty")
+let savedOrder = try JSONEncoder().encode(orderedModes)
+let loadedOrder = try JSONDecoder().decode([Mode].self, from: savedOrder)
+check(loadedOrder.map(\.id) == orderedModes.map(\.id), "layout order survives saving")
+
 // Discrete page swipes step once, without treating scrolling or vertical swipes as tabs.
 check(TabSwipe.offset(x: 1, y: 0) == 1, "left swipe selects the next tab")
 check(TabSwipe.offset(x: -1, y: 0) == -1, "right swipe selects the previous tab")

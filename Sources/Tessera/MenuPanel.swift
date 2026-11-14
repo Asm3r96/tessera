@@ -4,6 +4,8 @@ import TesseraCore
 struct MenuPanel: View {
     @ObservedObject var model: AppModel
     @ObservedObject var updater: Updater
+    @ObservedObject var hotKeys: HotKeys
+    @Environment(\.dismiss) private var dismiss
     private var editing: Mode? {
         get { model.editing }
         nonmutating set { model.editing = newValue }
@@ -33,6 +35,15 @@ struct MenuPanel: View {
                 Text("Tessera").font(.headline)
                 Spacer()
                 Button {
+                    dismiss()
+                    model.showSettings()
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .buttonStyle(.borderless)
+                .help("Settings")
+                .accessibilityLabel("Settings")
+                Button {
                     editing = Mode(name: "New Mode", columns: [Column(weight: 1, rows: 1), Column(weight: 1, rows: 1)])
                 } label: {
                     Image(systemName: "plus")
@@ -49,7 +60,7 @@ struct MenuPanel: View {
                     ModeCard(mode: mode,
                              hovering: model.hovered == mode.id,
                              onHover: { model.hovered = $0 ? mode.id : (model.hovered == mode.id ? nil : model.hovered) },
-                             shortcut: index < 9 ? "⌃⌥\(index + 1)" : nil,
+                             shortcut: hotKeys.label(forLayout: index),
                              apply: { model.apply(mode) },
                              edit: { editing = mode })
                 }
@@ -66,8 +77,12 @@ struct MenuPanel: View {
                     .frame(width: 40, alignment: .trailing)
             }
             Toggle("Open at login", isOn: $model.launchAtLogin)
+                .toggleStyle(.switch)
+                .controlSize(.small)
             if updater.isRelease {
                 Toggle("Check for updates", isOn: $updater.enabled)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
             }
             Text("Hover a mode to preview it. Drag a window onto a zone’s center to swap or replace. Hold ⌘ to add it as a tab. Drop elsewhere to float it.")
                 .font(.caption)

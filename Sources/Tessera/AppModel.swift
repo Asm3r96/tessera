@@ -23,7 +23,8 @@ final class AppModel: ObservableObject {
     }
     @Published private(set) var hasAccess = AXIsProcessTrusted()
 
-    private let hotKeys = HotKeys()
+    let hotKeys = HotKeys()
+    private lazy var settings = SettingsWindowController(model: self, updater: .shared)
     private let drag = DragWatcher()
     private let swipe = SwipeWatcher()
     private let overlay = ZoneOverlay()
@@ -76,7 +77,13 @@ final class AppModel: ObservableObject {
         if !AXIsProcessTrusted() { requestAccess() }
     }
 
+    func showSettings() {
+        hovered = nil
+        settings.present()
+    }
+
     func refresh() {
+        hotKeys.refreshLabels()
         hasAccess = AXIsProcessTrusted()
         let enabled = SMAppService.mainApp.status == .enabled
         if launchAtLogin != enabled { launchAtLogin = enabled }
@@ -322,6 +329,10 @@ final class AppModel: ObservableObject {
         } else {
             modes.append(mode)
         }
+    }
+
+    func moveMode(from source: Int, to destination: Int) {
+        ModeOrder.move(&modes, from: source, to: destination)
     }
 
     func delete(_ mode: Mode) {
