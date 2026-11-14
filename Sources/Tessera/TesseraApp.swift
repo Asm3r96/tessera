@@ -7,7 +7,7 @@ struct TesseraApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            MenuPanel(model: AppModel.shared, updater: Updater.shared)
+            MenuPanel(model: AppModel.shared, updater: Updater.shared, hotKeys: AppModel.shared.hotKeys)
         } label: {
             MenuBarIcon(updater: Updater.shared)
         }

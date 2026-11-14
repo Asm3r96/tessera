@@ -38,6 +38,8 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN/Tessera" "$APP/Contents/MacOS/Tessera"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+ditto "$BIN/KeyboardShortcuts_KeyboardShortcuts.bundle" "$APP/Contents/Resources/KeyboardShortcuts_KeyboardShortcuts.bundle"
+cp .build/checkouts/KeyboardShortcuts/license "$APP/Contents/Resources/KeyboardShortcuts-LICENSE"
 if [ -n "${VERSION:-}" ]; then
   plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP/Contents/Info.plist"
   plutil -replace CFBundleVersion -string "$VERSION" "$APP/Contents/Info.plist"

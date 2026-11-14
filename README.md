@@ -49,6 +49,7 @@ To update a source build, run `git pull && ./build.sh install`.
 | `swift build` | Compiles only. Use it to check for compile errors. |
 | `swift run TesseraChecks` | Runs the logic checks for layouts and linked resizing. |
 | `bash scripts/check-focus.sh` | Checks focus and restore behavior without moving real windows. |
+| `bash scripts/check-settings.sh` | Checks shortcuts, saved layout order, and native settings pages in an isolated app. |
 
 ## Signing
 
@@ -112,6 +113,16 @@ A zone can hold more than one window. The windows share the zone's size and plac
 - Turn on **Open at login** to start Tessera when you log in.
 - Turn off **Check for updates** to stop the daily update check. The refresh icon next to the version still checks when you click it. Both appear only in release builds.
 
+### Settings
+
+Click the gear in the menu bar panel to open Settings. Use the sidebar to change sections.
+
+- **About** shows the version, the app and author websites, and update controls. Source builds link to releases instead of installing updates.
+- **Shortcuts** lets you record keys for focus, tab switching, and the nine layout positions. Click a shortcut and press your keys. Press Escape to cancel or Delete to clear it. Changes save immediately. Tessera rejects duplicate assignments and warns about system shortcuts.
+- **Layouts** lets you drag saved layouts into order, or use Move up and Move down. The menu and layout shortcuts follow this order.
+
+Shortcut labels use your current keyboard layout. For example, the default focus shortcut appears as ⌃⌥Y on a German keyboard. Use Restore default shortcuts to reset all assignments.
+
 ### Add or edit a mode
 
 1. Click the menu bar icon.
@@ -148,7 +159,8 @@ Modes are saved in the app's user defaults (`com.moe.tessera`). They do not sync
 | `Sources/Tessera/SwipeWatcher.swift` | Watches page swipes to switch tabs in the zone under the pointer. |
 | `Sources/Tessera/DragWatcher.swift` | Detects window drags by the title bar and the drop point. |
 | `Sources/Tessera/ZoneOverlay.swift` | Click-through zone overlay for previews and drags. |
-| `Sources/Tessera/HotKeys.swift` | Global shortcuts ⌃⌥1 to ⌃⌥9, ⌃⌥Z, ⌃⌥` and ⌃⌥⇧`. |
+| `Sources/Tessera/HotKeys.swift` | Saved global shortcuts and keyboard-layout-aware labels, using [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts). |
+| `Sources/Tessera/SettingsWindow.swift` | Native settings window with an About, Shortcuts and Layouts sidebar. |
 | `Sources/Tessera/MenuPanel.swift` | Menu bar panel and mode editor UI. |
 | `Resources/Info.plist` | Bundle settings. `LSUIElement` hides the Dock icon. |
 | `Resources/AppIcon.icns` | App icon. Rebuild it with `swift scripts/make-icon.swift`. |

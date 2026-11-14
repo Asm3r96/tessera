@@ -16,3 +16,5 @@ jobs:
         run: swift run TesseraChecks
       - name: Focus checks
         run: bash scripts/check-focus.sh
+      - name: Settings checks
+        run: bash scripts/check-settings.sh
